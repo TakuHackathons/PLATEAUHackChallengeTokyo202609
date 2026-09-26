@@ -731,6 +731,19 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1000, y: 1, z: 1000}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1001 &4000000000
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications: []
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: d1c51bbbe4274408ebb4850d51b0cffd, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -743,3 +756,4 @@ SceneRoots:
   - {fileID: 3000000010}
   - {fileID: 3000000020}
   - {fileID: 3000000031}
+  - {fileID: 4000000000}
