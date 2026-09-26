@@ -153,6 +153,7 @@ GameObject:
   - component: {fileID: 5420857361349278248}
   - component: {fileID: 8616685848737228376}
   - component: {fileID: 3000000040}
+  - component: {fileID: 3000000050}
   m_Layer: 8
   m_Name: PlayerCapsule
   m_TagString: Player
@@ -393,3 +394,20 @@ MonoBehaviour:
   ropeHighlight: {r: 0.9, g: 0.96, b: 1, a: 1}
   maximumSag: 4
   missShotRange: 35
+--- !u!114 &3000000050
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8616685848737228372}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6cba8dc961c64643943cce91df238f8d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  raidBoss: {fileID: 0}
+  mapSpan: 220
+  collisionResolution: 128
+  collisionRefreshSeconds: 0.8
+  obstacleSampleHeight: 1.1
