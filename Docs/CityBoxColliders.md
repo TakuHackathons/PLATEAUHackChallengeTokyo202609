@@ -1,14 +1,20 @@
 # PLATEAU city BoxCollider tool
 
-`Assets/Editor/CityBoxColliderTool.cs` adds these Unity Editor menu commands:
+The SampleScene collision prefab is `Assets/Generated/CityBoxColliders.prefab`. It contains only BoxColliders: **361 for the DEM ground** and **396 for 407 buildings**, for **757 total**. Eleven buildings that do not meet the size checks are left without colliders. The old flat temporary ground collider has been removed.
 
-- **Tools > Altitude Zero > City Box Colliders > Analyze Selected**: select a PLATEAU city root, then inspect the Console summary without changing the scene.
-- **Apply Selected**: generate BoxColliders for the selected root. Running it again replaces the previously generated colliders.
-- **Clear Selected**: remove the generated colliders from the selected root.
-- **Apply to SampleScene**: apply the tool to the city prefab in the open SampleScene. Save the scene afterward.
+## Reuse in the Unity Editor
 
-The tool examines each descendant named `bldg_*`. It samples horizontal mesh triangles in the city root's coordinate system, first on a 1 m grid and then on a 0.5 m grid if needed. Cells with a nearly flat roof are merged into rectangles; each rectangle becomes a solid BoxCollider from the building's lowest vertex to that roof. It requires at least 45% of candidate roof cells to fit and limits each building to 32 boxes. Buildings that fail these checks receive no collider. `dem_*` terrain is excluded.
+Select the root of a PLATEAU city model in the Hierarchy, then use **Tools > Altitude Zero > City Box Colliders**:
 
-The current SampleScene uses the generated collider-only prefab at `Assets/Generated/CityBoxColliders.prefab`. The measured result was **255 of 407 buildings**, using **3,369 BoxColliders** and no MeshCollider. The other 152 buildings were skipped because the flat-box fit failed or needed too many boxes. The earlier temporary ground collider remains a separate floor; it does not approximate DEM terrain.
+- **Analyze Selected** reports the planned collider count without editing the scene.
+- **Apply Selected** creates `__GeneratedBoxColliders` under the selected city root. Repeating it replaces the prior generated colliders. In SampleScene, it also removes the supplied baked prefab instance to avoid duplicate colliders. Save the scene afterward.
+- **Clear Selected** removes generated colliders and, in SampleScene, the supplied baked prefab instance.
+- **Apply to SampleScene** finds the city model in the open SampleScene and applies the same process.
 
-If the city is moved or replaced, delete or regenerate the collider-only prefab instance and run **Apply Selected** on the city root so the collision geometry follows the new mesh layout. Inspect tight passages and roofs in the Scene view before relying on them for gameplay.
+The script is `Assets/Editor/CityBoxColliderTool.cs`. The FBX import must allow mesh reading so the Editor can measure its geometry. The collider fitting happens in the Editor; it does not add MeshColliders at runtime.
+
+The tool samples triangles in `dem_*` meshes to estimate terrain height. It covers the DEM with 40 m square boxes and subdivides tiles where sampled heights differ by more than 2 m, down to approximately 10 m. Each box rises to the median sampled height. This gives a coarse, stepped ground surface; check steep slopes, tile edges, and the FPS spawn position in Play mode.
+
+The FPS spawn in SampleScene is set near the generated ground at `(0, 38.5, 110)`; the ground collider there reaches approximately `y = 37.48`.
+
+For each `bldg_*` group, the tool measures the bounds of all its mesh vertices and creates **one solid BoxCollider** with 0.5 m total horizontal padding. It skips groups with unreadable meshes, very small dimensions, or a width/depth over 80 m instead of making an unreliable box. This intentionally fills courtyards and overhangs within a building's bounds. Inspect entrances or narrow passages that need bespoke collision.
