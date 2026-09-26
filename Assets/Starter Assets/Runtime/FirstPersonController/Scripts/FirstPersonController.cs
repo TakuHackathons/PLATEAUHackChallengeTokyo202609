@@ -59,6 +59,7 @@ namespace StarterAssets
 		private float _rotationVelocity;
 		private float _verticalVelocity;
 		private bool _externalMovementActive;
+		private Vector3 _inheritedVelocity;
 		private float _terminalVelocity = 53.0f;
 
 		// timeout deltatime
@@ -126,14 +127,16 @@ namespace StarterAssets
 		public void BeginExternalMovement()
 		{
 			_externalMovementActive = true;
+			_inheritedVelocity = Vector3.zero;
 			_verticalVelocity = 0f;
 			_speed = 0f;
 		}
 
-		public void EndExternalMovement()
+		public void EndExternalMovement(Vector3 releaseVelocity)
 		{
 			_externalMovementActive = false;
-			_verticalVelocity = 0f;
+			_inheritedVelocity = new Vector3(releaseVelocity.x, 0f, releaseVelocity.z);
+			_verticalVelocity = releaseVelocity.y;
 			_speed = 0f;
 			_input.jump = false;
 		}
@@ -174,6 +177,9 @@ namespace StarterAssets
 
 		private void Move()
 		{
+			// Preserve a grapple launch while airborne. Ground contact quickly absorbs it.
+			_inheritedVelocity = Vector3.MoveTowards(_inheritedVelocity, Vector3.zero,
+				(Grounded ? 35f : 0.5f) * Time.deltaTime);
 			// set target speed based on move speed, sprint speed and if sprint is pressed
 			float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
 
@@ -216,7 +222,10 @@ namespace StarterAssets
 			}
 
 			// move the player
-			_controller.Move(inputDirection.normalized * (_speed * Time.deltaTime) + new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+			_controller.Move((inputDirection.normalized * _speed + _inheritedVelocity +
+				new Vector3(0.0f, _verticalVelocity, 0.0f)) * Time.deltaTime);
+			if ((_controller.collisionFlags & CollisionFlags.Above) != 0 && _verticalVelocity > 0f)
+				_verticalVelocity = 0f;
 		}
 
 		private void JumpAndGravity()

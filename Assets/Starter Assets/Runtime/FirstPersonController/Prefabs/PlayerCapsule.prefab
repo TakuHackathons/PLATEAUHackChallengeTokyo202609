@@ -382,10 +382,14 @@ MonoBehaviour:
   anchorLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  surfaceClearance: 0.12
   flightSpeed: 32
   acceleration: 80
-  arrivalDistance: 0.4
-  maxFlightTime: 8
-  ropeWidth: 0.04
-  ropeColor: {r: 0.9, g: 0.95, b: 1, a: 1}
+  airSteering: 12
+  reelSpeed: 18
+  minimumRopeLength: 1.5
+  launchLift: 11
+  ropeWidth: 0.065
+  ropeColor: {r: 0.08, g: 0.1, b: 0.13, a: 1}
+  ropeHighlight: {r: 0.9, g: 0.96, b: 1, a: 1}
+  maximumSag: 4
+  missShotRange: 35
