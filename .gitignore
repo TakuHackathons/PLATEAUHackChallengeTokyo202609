@@ -1,0 +1,57 @@
+# ─── 共通 ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+
+# ─── Unity ────────────────────────────────────────────────────────
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emory[Cc]aptures/
+[Uu]ser[Ss]ettings/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+crashlytics-build.properties
+
+# ARPreviewSettings は Resources/ に自動生成されるためコミット対象外
+# (チームで共有したい場合はこの行を削除)
+# packages/unity/Samples~/BasicARScene/Assets/Resources/ARPreviewSettings.asset
+
+# ─── Android ──────────────────────────────────────────────────────
+apps/android/.gradle/
+apps/android/*/build/
+apps/android/local.properties
+apps/android/**/*.apk
+apps/android/**/*.aab
+apps/android/**/*.class
+
+# ─── iOS ──────────────────────────────────────────────────────────
+apps/ios/*.xcworkspace/
+apps/ios/Pods/
+apps/ios/.build/
+apps/ios/**/*.ipa
+apps/ios/**/DerivedData/
+apps/ios/**/*.xcuserstate
+
+# ─── Docker ───────────────────────────────────────────────────────
+docker/data/
+
+# ─── 生成コード: gen/ はコミット対象 ─────────────────────────────
+# (CI での proto-check のためコミット必須)
+# !gen/
+
+# ─── 依存ライブラリ ───────────────────────────────────────────────
+node_modules/
