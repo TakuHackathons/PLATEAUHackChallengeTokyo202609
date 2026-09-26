@@ -58,6 +58,7 @@ namespace StarterAssets
 		private float _speed;
 		private float _rotationVelocity;
 		private float _verticalVelocity;
+		private bool _externalMovementActive;
 		private float _terminalVelocity = 53.0f;
 
 		// timeout deltatime
@@ -112,9 +113,29 @@ namespace StarterAssets
 
 		private void Update()
 		{
+			if (_externalMovementActive)
+			{
+				GroundedCheck();
+				return;
+			}
 			JumpAndGravity();
 			GroundedCheck();
 			Move();
+		}
+
+		public void BeginExternalMovement()
+		{
+			_externalMovementActive = true;
+			_verticalVelocity = 0f;
+			_speed = 0f;
+		}
+
+		public void EndExternalMovement()
+		{
+			_externalMovementActive = false;
+			_verticalVelocity = 0f;
+			_speed = 0f;
+			_input.jump = false;
 		}
 
 		private void LateUpdate()
