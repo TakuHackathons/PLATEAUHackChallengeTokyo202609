@@ -483,7 +483,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 86276de3cbe44c91a6cda7b328517eba, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RaidBossHitboxFollower
   bindings:
   - bone: {fileID: 611103490510702311}
@@ -1122,6 +1122,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -1728013695380148634, guid: 0edc5b0d4e85e445a892e206c2fc682e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2755806465588700290}
+    - targetCorrespondingSourceObject: {fileID: -1728013695380148634, guid: 0edc5b0d4e85e445a892e206c2fc682e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 185059331183353617}
   m_SourcePrefab: {fileID: -3956505258223990651, guid: 0edc5b0d4e85e445a892e206c2fc682e, type: 3}
 --- !u!4 &12954601862997326 stripped
 Transform:
@@ -1180,7 +1183,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 15d36bfe401246de9be115b105fa3a26, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RaidBossLocomotion
   motion: 0
   walkSpeed: 2.2
@@ -1188,6 +1191,18 @@ MonoBehaviour:
   groundSnapDistance: 0.15
   groundClearance: 0.01
   motionBlendTime: 0.2
+--- !u!114 &185059331183353617
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1060005306194687674}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83c3adbe31f7a4114858dfcbf82db20c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
 --- !u!4 &1292678799411085366 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8593357381890201834, guid: 0edc5b0d4e85e445a892e206c2fc682e, type: 3}
