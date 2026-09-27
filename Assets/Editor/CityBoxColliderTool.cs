@@ -130,9 +130,9 @@ namespace AltitudeZero.Editor
         }
 
         /// <summary>Build a standalone collider object for the selected city root or an FBX instance.</summary>
-        public static GameObject BuildColliderObject(Transform cityRoot, out Report report)
+        public static GameObject BuildColliderObject(Transform cityRoot, out Report report, bool preferBoxes = false)
         {
-            var plan = Analyze(cityRoot);
+            var plan = Analyze(cityRoot, preferBoxes);
             report = plan.report;
             var result = new GameObject(GeneratedName);
 
@@ -230,7 +230,7 @@ namespace AltitudeZero.Editor
                    AssetDatabase.GUIDToAssetPath(CityPrefabGuid);
         }
 
-        private static Plan Analyze(Transform cityRoot)
+        private static Plan Analyze(Transform cityRoot, bool preferBoxes = false)
         {
             var plan = new Plan { report = new Report() };
             var terrain = new List<TerrainTriangle>();
@@ -289,7 +289,7 @@ namespace AltitudeZero.Editor
                 if (nested) continue;
 
                 plan.report.buildings++;
-                var buildingPlan = AnalyzeBuilding(transform, cityRoot);
+                var buildingPlan = AnalyzeBuilding(transform, cityRoot, preferBoxes);
                 if (buildingPlan == null)
                 {
                     plan.report.skippedBuildings++;
@@ -308,6 +308,23 @@ namespace AltitudeZero.Editor
                 }
             }
 
+            // PLATEAU 以外の都市 Prefab でも MeshFilter の子を処理する。
+            foreach (var filter in cityRoot.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (HasNamedAncestor(filter.transform, cityRoot, "bldg_") ||
+                    HasNamedAncestor(filter.transform, cityRoot, "dem_")) continue;
+                var generic = AnalyzeGenericMesh(filter, cityRoot);
+                if (generic == null) continue;
+                plan.buildings.Add(generic);
+                plan.report.buildings++;
+                if (generic.boxes.Count > 0)
+                {
+                    plan.report.boxedBuildings++;
+                    plan.report.buildingBoxes += generic.boxes.Count;
+                }
+                else plan.report.meshBuildings++;
+            }
+
             if (terrain.Count > 0)
             {
                 for (float x = groundMinX; x < groundMaxX; x += GroundTileSize)
@@ -320,7 +337,7 @@ namespace AltitudeZero.Editor
             return plan;
         }
 
-        private static BuildingPlan AnalyzeBuilding(Transform building, Transform cityRoot)
+        private static BuildingPlan AnalyzeBuilding(Transform building, Transform cityRoot, bool preferBoxes)
         {
             var result = new BuildingPlan { name = building.name };
             var bounds = new Bounds();
@@ -339,6 +356,9 @@ namespace AltitudeZero.Editor
                 if (mesh == null) continue;
                 var localToRoot = cityRoot.worldToLocalMatrix * filter.transform.localToWorldMatrix;
                 result.meshes.Add(new MeshPart { mesh = mesh, localToRoot = localToRoot });
+                EncapsulateMeshBounds(mesh.bounds, localToRoot, ref bounds, ref found);
+                if (!found && filter.TryGetComponent<MeshRenderer>(out var meshRenderer))
+                    EncapsulateRendererBounds(meshRenderer.bounds, cityRoot, ref bounds, ref found);
                 if (!mesh.isReadable) { canReadAll = false; continue; }
                 var vertices = mesh.vertices;
                 var points = new Vector3[vertices.Length];
@@ -374,7 +394,7 @@ namespace AltitudeZero.Editor
                 : float.PositiveInfinity;
             // 細長い低ポリゴンの建物は屋根や通路の下に空間がある場合がある。
             // 平面の占有範囲を建物の全高に広げた Box では通行可能な空間まで塞いでしまう。
-            var needsSurfaceCollider = result.meshes.Count == 1 && canReadAll &&
+            var needsSurfaceCollider = !preferBoxes && result.meshes.Count == 1 && canReadAll &&
                 totalTriangles > 0 && totalTriangles <= MaximumConvexTriangles && sideRatio > 4f;
             if (!needsSurfaceCollider && canReadAll && found && triangles.Count > 0 &&
                 TryBuildBoxes(bounds, triangles, result.boxes))
@@ -384,9 +404,81 @@ namespace AltitudeZero.Editor
             }
 
             result.boxes.Clear();
+            if (preferBoxes && found)
+            {
+                result.boxes.Add(new Box
+                {
+                    center = bounds.center,
+                    size = new Vector3(Mathf.Max(0.1f, bounds.size.x) + BuildingHorizontalPadding,
+                        Mathf.Max(0.1f, bounds.size.y),
+                        Mathf.Max(0.1f, bounds.size.z) + BuildingHorizontalPadding)
+                });
+                result.meshes.Clear();
+                return result;
+            }
             result.convex = result.meshes.Count == 1 && canReadAll &&
                 totalTriangles > 0 && totalTriangles <= MaximumConvexTriangles && sideRatio <= 3f;
             return result;
+        }
+
+        private static bool HasNamedAncestor(Transform transform, Transform root, string prefix)
+        {
+            for (var current = transform; current != null; current = current.parent)
+            {
+                if (current.name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return true;
+                if (current == root) break;
+            }
+            return false;
+        }
+
+        private static BuildingPlan AnalyzeGenericMesh(MeshFilter filter, Transform root)
+        {
+            var mesh = filter.sharedMesh;
+            if (mesh == null) return null;
+            var bounds = new Bounds();
+            var found = false;
+            var localToRoot = root.worldToLocalMatrix * filter.transform.localToWorldMatrix;
+            EncapsulateMeshBounds(mesh.bounds, localToRoot, ref bounds, ref found);
+            if (!found && filter.TryGetComponent<MeshRenderer>(out var renderer))
+                EncapsulateRendererBounds(renderer.bounds, root, ref bounds, ref found);
+            var result = new BuildingPlan { name = filter.name };
+            if (!found)
+            {
+                result.meshes.Add(new MeshPart { mesh = mesh, localToRoot = localToRoot });
+                return result;
+            }
+            result.boxes.Add(new Box
+            {
+                center = bounds.center,
+                size = new Vector3(Mathf.Max(0.1f, bounds.size.x) + BuildingHorizontalPadding,
+                    Mathf.Max(0.1f, bounds.size.y),
+                    Mathf.Max(0.1f, bounds.size.z) + BuildingHorizontalPadding)
+            });
+            return result;
+        }
+
+        private static void EncapsulateMeshBounds(Bounds meshBounds, Matrix4x4 localToRoot,
+            ref Bounds bounds, ref bool found)
+        {
+            if (meshBounds.size.sqrMagnitude < 0.00000001f) return;
+            var min = meshBounds.min;
+            var max = meshBounds.max;
+            for (var x = 0; x < 2; x++)
+            for (var y = 0; y < 2; y++)
+            for (var z = 0; z < 2; z++)
+            {
+                var point = localToRoot.MultiplyPoint3x4(new Vector3(
+                    x == 0 ? min.x : max.x, y == 0 ? min.y : max.y, z == 0 ? min.z : max.z));
+                if (!float.IsFinite(point.x) || !float.IsFinite(point.y) || !float.IsFinite(point.z)) continue;
+                if (!found) { bounds = new Bounds(point, Vector3.zero); found = true; }
+                else bounds.Encapsulate(point);
+            }
+        }
+
+        private static void EncapsulateRendererBounds(Bounds worldBounds, Transform root,
+            ref Bounds bounds, ref bool found)
+        {
+            EncapsulateMeshBounds(worldBounds, root.worldToLocalMatrix, ref bounds, ref found);
         }
 
         private static bool TryBuildBoxes(Bounds bounds, List<FootprintTriangle> triangles, List<Box> boxes)
