@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1040" viewBox="0 0 1800 1040" role="img" aria-labelledby="title description">
+  <title id="title">AltitudeZero 現在のシステム構成図</title>
+  <desc id="description">単一のUnity 6プロジェクト内に、Editor専用ツール、Playモードのフィールド・プレイヤー・映像・UI、共通アセットがある。外部サーバーやWebRTC連携は未実装。</desc>
+  <style>
+    text { font-family: "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif; }
+    .title { font-size: 43px; font-weight: 700; fill: #142943; }
+    .subtitle { font-size: 22px; fill: #5b6d80; }
+    .section { font-size: 30px; font-weight: 700; fill: #173a5d; }
+    .cardTitle { font-size: 26px; font-weight: 700; fill: #142943; }
+    .body { font-size: 22px; fill: #36516a; }
+    .small { font-size: 19px; fill: #5b6d80; }
+    .chip { font-size: 19px; font-weight: 700; fill: #176c69; }
+  </style>
+
+  <rect width="1800" height="1040" fill="#f4f7fb"/>
+  <rect width="1800" height="13" fill="#138f8a"/>
+  <text x="66" y="78" class="title">AltitudeZero｜現在のシステム構成</text>
+  <text x="68" y="116" class="subtitle">Unityプロジェクト内の構成要素と実行範囲</text>
+  <rect x="1448" y="48" width="286" height="48" rx="24" fill="#e3f4f0"/>
+  <text x="1480" y="80" class="chip">開発中のプロトタイプ</text>
+
+  <!-- One local Unity project -->
+  <rect x="55" y="150" width="1690" height="815" rx="29" fill="#fff" stroke="#b9cad9" stroke-width="3"/>
+  <rect x="55" y="150" width="1690" height="87" rx="29" fill="#e7eff8"/>
+  <rect x="55" y="207" width="1690" height="30" fill="#e7eff8"/>
+  <text x="89" y="205" class="section">Unity 6 プロジェクト</text>
+  <text x="502" y="205" class="body">URP ／ ローカル環境で実行</text>
+
+  <!-- Editor-only area -->
+  <rect x="84" y="263" width="427" height="542" rx="22" fill="#ebf2fc" stroke="#a7c8ed" stroke-width="2"/>
+  <text x="111" y="308" class="section">Editor専用</text>
+  <text x="111" y="339" class="small">制作時に使う拡張とパッケージ</text>
+
+  <rect x="109" y="366" width="377" height="186" rx="17" fill="#fff" stroke="#a7c8ed" stroke-width="2"/>
+  <rect x="109" y="366" width="377" height="9" rx="5" fill="#3479d9"/>
+  <text x="133" y="417" class="cardTitle">CityBoxColliderTool</text>
+  <text x="133" y="458" class="body">都市の地形・建物を計測</text>
+  <text x="133" y="494" class="body">BoxColliderを一括生成</text>
+  <text x="133" y="531" class="small">Unity Editor拡張</text>
+
+  <rect x="109" y="577" width="377" height="120" rx="17" fill="#fff" stroke="#a7c8ed" stroke-width="2"/>
+  <rect x="109" y="577" width="377" height="9" rx="5" fill="#3479d9"/>
+  <text x="133" y="627" class="cardTitle">PLATEAU SDK for Unity</text>
+  <text x="133" y="666" class="small">プロジェクトに導入済み</text>
+
+  <rect x="109" y="721" width="377" height="61" rx="16" fill="#dceafc"/>
+  <text x="133" y="761" class="body">Unity Editorでシーンを編集</text>
+
+  <!-- Play mode: same process, not separate services -->
+  <rect x="543" y="263" width="1174" height="542" rx="22" fill="#eaf7f4" stroke="#a5d9d1" stroke-width="2"/>
+  <text x="570" y="308" class="section">Playモード内の構成</text>
+  <text x="570" y="339" class="small">SampleSceneで動作するコンポーネント</text>
+
+  <rect x="568" y="366" width="543" height="170" rx="17" fill="#fff" stroke="#a5d9d1" stroke-width="2"/>
+  <rect x="568" y="366" width="543" height="9" rx="5" fill="#138f8a"/>
+  <text x="592" y="417" class="cardTitle">フィールド｜SampleScene</text>
+  <text x="592" y="456" class="body">PLATEAU 新宿区3D都市モデル</text>
+  <text x="592" y="491" class="body">地形・建物のBoxCollider</text>
+  <text x="592" y="523" class="small">巨人モデルを配置</text>
+
+  <rect x="1137" y="366" width="554" height="170" rx="17" fill="#fff" stroke="#a5d9d1" stroke-width="2"/>
+  <rect x="1137" y="366" width="554" height="9" rx="5" fill="#138f8a"/>
+  <text x="1161" y="417" class="cardTitle">プレイヤー｜PlayerCapsule</text>
+  <text x="1161" y="456" class="body">Input System ＋ Starter Assets FPS</text>
+  <text x="1161" y="491" class="body">CharacterController</text>
+  <text x="1161" y="523" class="small">AnchorGrapple：左右アンカー・巻き取り</text>
+
+  <rect x="568" y="562" width="543" height="170" rx="17" fill="#fff" stroke="#a5d9d1" stroke-width="2"/>
+  <rect x="568" y="562" width="543" height="9" rx="5" fill="#138f8a"/>
+  <text x="592" y="613" class="cardTitle">映像・ワイヤー</text>
+  <text x="592" y="652" class="body">URP ＋ Cinemachine</text>
+  <text x="592" y="687" class="body">一人称カメラ・LineRenderer</text>
+  <text x="592" y="719" class="small">アンカーマーカーを表示</text>
+
+  <rect x="1137" y="562" width="554" height="170" rx="17" fill="#fff" stroke="#a5d9d1" stroke-width="2"/>
+  <rect x="1137" y="562" width="554" height="9" rx="5" fill="#138f8a"/>
+  <text x="1161" y="613" class="cardTitle">画面UI｜CityMinimap</text>
+  <text x="1161" y="652" class="body">uGUIによるミニマップ</text>
+  <text x="1161" y="687" class="body">障害物・自分・巨人を表示</text>
+  <text x="1161" y="719" class="small">周辺120m／広域400mを切り替え</text>
+
+  <rect x="569" y="752" width="1095" height="32" rx="16" fill="#d8eee9"/>
+  <text x="616" y="775" class="small">現在の実行形態：一人で遊ぶローカルのプロトタイプ　｜　外部サーバー・データベースとの通信なし</text>
+
+  <!-- Shared project assets -->
+  <rect x="84" y="829" width="1633" height="105" rx="19" fill="#f1f4f8" stroke="#cbd5df" stroke-width="2"/>
+  <text x="110" y="869" class="cardTitle">プロジェクト内のデータ</text>
+  <text x="110" y="907" class="body">PLATEAU都市FBX　／　巨人モデル　／　生成済みCollider Prefab　／　ミニマップのプレビュー画像</text>
+
+  <text x="72" y="1007" class="small">※ 巨人との戦闘処理とWebRTCマルチプレイは未実装です。現在のUnityプロジェクトには外部のゲームサーバーはありません。</text>
+</svg>
