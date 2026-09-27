@@ -41,11 +41,17 @@ namespace AltitudeZero
         {
             var kind = collider.GetComponentInParent<RaidBossLocomotion>() != null
                 ? RaisouTargetKind.RaidBoss
-                : collider.name.StartsWith("bldg_", StringComparison.Ordinal)
-                    ? RaisouTargetKind.Building : RaisouTargetKind.Other;
+                : IsBuilding(collider.transform) ? RaisouTargetKind.Building : RaisouTargetKind.Other;
             var result = new RaisouHit(collider, kind, damage, point, normal, weapon);
             Hit?.Invoke(result);
             Debug.Log($"{(weapon == WeaponKind.Blade ? "刀" : "雷槍")}命中: {kind} / {collider.name} / 仮ダメージ {damage:0.##}", collider);
+        }
+
+        private static bool IsBuilding(Transform target)
+        {
+            for (var current = target; current != null; current = current.parent)
+                if (current.name.StartsWith("bldg_", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
         }
     }
 }

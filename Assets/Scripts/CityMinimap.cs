@@ -19,9 +19,10 @@ namespace AltitudeZero
         [SerializeField] private float detailSpan = 120f;
         [SerializeField] private float overviewSpan = 400f;
         [SerializeField] private float sampleHeight = 1.1f;
-        [SerializeField] private float refreshInterval = 0.5f;
+        [SerializeField] private float refreshInterval = 2f;
 
-        private const int Resolution = 256;
+        private const int Resolution = 128;
+        private const int MeshSampleStride = 4;
         private readonly Color32 open = new Color32(23, 42, 57, 255);
         private readonly Color32 blocked = new Color32(232, 92, 97, 255);
         private Texture2D mapTexture;
@@ -29,6 +30,7 @@ namespace AltitudeZero
         private float nextRefresh;
         private bool overview;
         private float streetHeight;
+        private Collider[] mapColliders;
 
         private void Start()
         {
@@ -41,7 +43,9 @@ namespace AltitudeZero
             mapImage.texture = mapTexture;
             if (rangeButton != null) rangeButton.onClick.AddListener(ToggleRange);
             streetHeight = FindStreetHeight();
+            mapColliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
             RefreshMap();
+            nextRefresh = Time.unscaledTime + refreshInterval;
         }
 
         private void OnDestroy()
@@ -93,12 +97,13 @@ namespace AltitudeZero
             var startZ = player.position.z - span * 0.5f;
             var step = span / Resolution;
             System.Array.Fill(pixels, open);
-            var colliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
-            foreach (var collider in colliders)
+            foreach (var collider in mapColliders)
             {
-                if (!collider.enabled || collider.isTrigger || !collider.gameObject.activeInHierarchy ||
+                if (collider == null || !collider.enabled || collider.isTrigger || !collider.gameObject.activeInHierarchy ||
                     collider.transform.IsChildOf(player) ||
                     (raidBoss != null && collider.transform.IsChildOf(raidBoss))) continue;
+                // 非凸 MeshCollider は ClosestPoint 非対応。呼ぶと毎回警告が出て Play を重くする。
+                if (collider is MeshCollider meshCollider && !meshCollider.convex) continue;
                 var b = collider.bounds;
                 if (b.max.y < streetHeight + sampleHeight - 0.4f ||
                     b.min.y > streetHeight + sampleHeight + 0.4f ||
@@ -108,17 +113,26 @@ namespace AltitudeZero
                 var maxX = Mathf.Clamp(Mathf.FloorToInt((b.max.x - startX) / step), 0, Resolution - 1);
                 var minZ = Mathf.Clamp(Mathf.FloorToInt((b.min.z - startZ) / step), 0, Resolution - 1);
                 var maxZ = Mathf.Clamp(Mathf.FloorToInt((b.max.z - startZ) / step), 0, Resolution - 1);
-                for (var z = minZ; z <= maxZ; z++)
-                for (var x = minX; x <= maxX; x++)
+                if (collider is BoxCollider)
                 {
-                    if (!(collider is BoxCollider))
-                    {
-                        var point = new Vector3(startX + (x + 0.5f) * step,
-                            streetHeight + sampleHeight, startZ + (z + 0.5f) * step);
-                        if ((collider.ClosestPoint(point) - point).sqrMagnitude > step * step * 0.5f)
-                            continue;
-                    }
-                    pixels[z * Resolution + x] = blocked;
+                    for (var z = minZ; z <= maxZ; z++)
+                    for (var x = minX; x <= maxX; x++) pixels[z * Resolution + x] = blocked;
+                    continue;
+                }
+
+                // Box 以外の対応 Collider は 4x4 画素ごとに代表点を調べる。
+                for (var z = minZ; z <= maxZ; z += MeshSampleStride)
+                for (var x = minX; x <= maxX; x += MeshSampleStride)
+                {
+                    var endX = Mathf.Min(x + MeshSampleStride - 1, maxX);
+                    var endZ = Mathf.Min(z + MeshSampleStride - 1, maxZ);
+                    var point = new Vector3(startX + (x + endX + 1) * 0.5f * step,
+                        streetHeight + sampleHeight, startZ + (z + endZ + 1) * 0.5f * step);
+                    var maxDistance = step * MeshSampleStride * 0.75f;
+                    if ((collider.ClosestPoint(point) - point).sqrMagnitude > maxDistance * maxDistance)
+                        continue;
+                    for (var fillZ = z; fillZ <= endZ; fillZ++)
+                    for (var fillX = x; fillX <= endX; fillX++) pixels[fillZ * Resolution + fillX] = blocked;
                 }
             }
             mapTexture.SetPixels32(pixels);

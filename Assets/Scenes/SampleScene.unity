@@ -631,6 +631,10 @@ PrefabInstance:
       propertyPath: hitLayers.m_Bits
       value: 51
       objectReference: {fileID: 0}
+    - target: {fileID: 3000000060, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
+      propertyPath: hitLayers.m_Bits
+      value: 51
+      objectReference: {fileID: 0}
     - target: {fileID: 8997996947095583982, guid: c5efc39a8aaf6e64ea40e9ad573e9b47, type: 3}
       propertyPath: m_LocalPosition.x
       value: 27
@@ -821,7 +825,7 @@ MonoBehaviour:
   detailSpan: 120
   overviewSpan: 400
   sampleHeight: 1.1
-  refreshInterval: 0.5
+  refreshInterval: 2
 --- !u!1 &5000000010
 GameObject:
   m_ObjectHideFlags: 0

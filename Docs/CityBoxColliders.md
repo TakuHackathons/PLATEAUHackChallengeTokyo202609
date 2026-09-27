@@ -1,20 +1,23 @@
-# PLATEAU都市モデル用BoxColliderツール
+# PLATEAU都市モデル用Colliderツール
 
-SampleSceneの当たり判定には、`Assets/Generated/CityBoxColliders.prefab`を使用しています。内訳はDEM地形に361個、建物407棟のうち396棟に各1個で、**合計757個のBoxCollider**です。大きさの条件を満たさない11棟にはColliderを付けていません。以前の仮の平面Colliderは削除済みです。
+SampleSceneの当たり判定には`Assets/Generated/CityBoxColliders.prefab`を使用しています。現在はDEM地形に361個、建物407棟のうち398棟に計478個のBoxCollider、残る9棟に非凸MeshColliderを配置しています。BoxColliderを使う建物は最大でも1棟8個です。
 
 ## Unity Editorで再利用する方法
 
-HierarchyでPLATEAU都市モデルのルートを選び、**Tools > Altitude Zero > City Box Colliders**から次のコマンドを実行します。
+HierarchyでPLATEAU都市モデルのルートを選び、**Tools > Altitude Zero > City Box Colliders**から実行します。
 
-- **Analyze Selected**：シーンを変更せず、生成予定のCollider数をConsoleに表示します。
-- **Apply Selected**：選択した都市モデルの下に`__GeneratedBoxColliders`を作成します。再実行すると前回の生成物を置き換えます。SampleSceneでは、Colliderの重複を防ぐため、配置済みの生成Prefabも削除します。実行後はシーンを保存してください。
+- **Analyze Selected**：シーンを変更せず、生成予定のBoxCollider・MeshCollider数をConsoleに表示します。
+- **Apply Selected**：選択した都市モデルの下に`__GeneratedBoxColliders`を作成します。再実行すると前回の生成物を置き換えます。SampleSceneでは重複を避けるため、配置済みの生成Prefabを削除します。実行後はシーンを保存してください。
 - **Clear Selected**：生成したColliderを削除します。SampleSceneでは配置済みの生成Prefabも削除します。
-- **Apply to SampleScene**：開いているSampleSceneから都市モデルを探し、同じ処理を実行します。
+- **Apply to SampleScene**：開いているSampleSceneの都市モデルに同じ処理を実行します。
+- **Rebuild Sample Collider Prefab**：SampleSceneで使用中の`CityBoxColliders.prefab`を都市FBXから再生成します。シーン内のPrefab参照はそのまま使えます。現在のSampleSceneと同じく、都市モデルのルートTransformを原点・回転なし・等倍として計測します。
 
-スクリプトは`Assets/Editor/CityBoxColliderTool.cs`です。EditorでMeshの形状を計測するため、FBXのインポート設定ではMeshの読み取りを有効にしてください。Colliderの生成はEditor上で行い、実行時にMeshColliderは追加しません。
+スクリプトは`Assets/Editor/CityBoxColliderTool.cs`です。BoxColliderへの当てはめにはMeshの頂点を読むため、FBXのインポート設定で**Read/Write**を有効にしてください。
 
-地面は`dem_*`の三角形から高さを計測します。基本は40m四方のBoxColliderで覆い、計測した高低差が2mを超える場所だけ約10mまで分割します。各BoxColliderの上面には、計測点の高さの中央値を使います。地形は段状に近似されるため、急斜面、タイルの境界、FPSの開始位置はPlayモードで確認してください。
+## 当てはめの方法
 
-SampleSceneのFPS開始位置は`(0, 38.5, 110)`です。この位置の地面Collider上面は、およそ`y = 37.48`です。
+建物はMeshの三角形をXZ平面に投影し、約10m単位の区画で形を調べます。隣接する区画をまとめてBoxColliderにするため、単純な建物は大きな箱1個、入り組んだ建物は少数の箱の組み合わせになります。1棟あたり32個を超える場合など、箱では形を保ちにくい場合はMeshColliderに切り替えます。細長く低ポリゴンの建物は、通路などの空間を大きな箱が塞ぐことがあるため、元のMeshに沿う非凸MeshColliderを使います。
 
-建物は`bldg_*`ごとに全Meshの頂点から範囲を計測し、**建物1棟につき1個のBoxCollider**を作ります。水平方向には合計0.5mの余裕を持たせます。Meshを読み取れない建物、極端に小さい建物、幅または奥行きが80mを超える建物は、信頼できる箱を作れないため処理を飛ばします。建物内部の中庭や張り出しの下も箱で埋まるので、入口や狭い通路が必要な場所は個別に確認してください。
+Unityの`PolygonCollider`は2D用です。3Dで多角形の近似が必要な場合は、三角形64個以下で横方向の縦横比が3以下のMeshに凸形状のMeshColliderを使います。それ以外は元のMeshを使った非凸MeshColliderにします。これらは都市の静的なColliderとして生成し、実行時に形状を解析しません。
+
+地面は`dem_*`の三角形から高さを計測します。基本は40m四方のBoxColliderで覆い、高低差が2mを超える場所だけ約10mまで分割します。地形は段状の近似なので、急斜面やタイルの境界はPlayモードで確認してください。
