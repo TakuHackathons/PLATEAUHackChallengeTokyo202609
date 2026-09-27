@@ -9,13 +9,12 @@ namespace AltitudeZero
     public sealed class AnchorGrapple : MonoBehaviour
     {
         [Header("Anchor")]
-        [SerializeField, Min(1f)] private float maxRange = 150f;
+        [SerializeField, Min(1f)] private float maxRange = 800f;
         [SerializeField] private LayerMask anchorLayers = ~0;
 
         [Header("Movement")]
         [SerializeField, Min(1f)] private float flightSpeed = 32f;
         [SerializeField, Min(1f)] private float acceleration = 80f;
-        [SerializeField, Min(0f)] private float airSteering = 12f;
         [SerializeField, Min(0.1f)] private float reelSpeed = 18f;
         [SerializeField, Min(0.5f)] private float minimumRopeLength = 1.5f;
 
@@ -23,7 +22,7 @@ namespace AltitudeZero
         [SerializeField, Min(0.005f)] private float ropeWidth = 0.065f;
         [SerializeField] private Color ropeColor = new Color(0.08f, 0.1f, 0.13f, 1f);
         [SerializeField] private Color ropeHighlight = new Color(0.9f, 0.96f, 1f, 1f);
-        [SerializeField, Min(1f)] private float missShotRange = 35f;
+        [SerializeField, Min(1f)] private float missShotRange = 200f;
 
         private const int RopeSegments = 20;
         private const float MissDuration = 0.55f;
@@ -54,7 +53,6 @@ namespace AltitudeZero
         private readonly Anchor _right = new Anchor { name = "Right", side = 1 };
         private CharacterController _character;
         private FirstPersonController _firstPerson;
-        private StarterAssetsInputs _input;
         private PlayerInput _playerInput;
         private Camera _camera;
         private InputAction _leftAction;
@@ -71,7 +69,6 @@ namespace AltitudeZero
         private Vector3 _velocity;
         private float _currentReelSpeed;
         private bool _pullHeld;
-        private bool _suspendReelUntilRelease;
         private int _shotCounter;
         private Anchor _reelTarget;
         private Anchor _latchTarget;
@@ -88,7 +85,6 @@ namespace AltitudeZero
         {
             _character = GetComponent<CharacterController>();
             _firstPerson = GetComponent<FirstPersonController>();
-            _input = GetComponent<StarterAssetsInputs>();
             _playerInput = GetComponent<PlayerInput>();
             _camera = Camera.main;
             CreateVisuals();
@@ -124,6 +120,7 @@ namespace AltitudeZero
             }
             Detach(_left);
             Detach(_right);
+            _pullHeld = false;
             if (_left.gauntlet != null) _left.gauntlet.SetActive(false);
             if (_right.gauntlet != null) _right.gauntlet.SetActive(false);
         }
@@ -170,12 +167,6 @@ namespace AltitudeZero
                 return;
             }
 
-            var firstAnchor = !AnyAttached;
-            if (firstAnchor)
-            {
-                _velocity = _character.velocity;
-                _firstPerson.BeginExternalMovement();
-            }
             anchor.collider = selected.collider;
             anchor.state = AnchorState.Attached;
             anchor.localPoint = selected.collider.transform.InverseTransformPoint(selected.point);
@@ -188,43 +179,44 @@ namespace AltitudeZero
             anchor.marker.transform.position = selected.point - selected.normal * 0.025f;
             anchor.marker.SetActive(true);
             anchor.markerCollider.enabled = true;
+            Physics.IgnoreCollision(_character, anchor.markerCollider, true);
             if (_pullHeld)
-            {
-                ReleaseHold();
-                if (_reelTarget != null && _reelTarget.state == AnchorState.Reeling)
-                    _reelTarget.state = AnchorState.Attached;
-                _reelTarget = anchor;
-                _suspendReelUntilRelease = false;
-                _currentReelSpeed = reelSpeed;
-                anchor.state = AnchorState.Reeling;
-            }
+                StartReeling(anchor);
             UpdateVisuals(anchor);
         }
 
         private void OnPullPerformed(InputAction.CallbackContext context)
         {
             _pullHeld = true;
-            _suspendReelUntilRelease = false;
             var target = MostRecentAnchor();
             if (target == _latchTarget && target != null && target.state == AnchorState.Holding)
                 return;
+            StartReeling(target);
+        }
+
+        private void StartReeling(Anchor target)
+        {
             ReleaseHold();
             if (_reelTarget != null && _reelTarget.state == AnchorState.Reeling)
                 _reelTarget.state = AnchorState.Attached;
             _reelTarget = target;
-            _currentReelSpeed = reelSpeed;
-            if (_reelTarget != null)
-                _reelTarget.state = AnchorState.Reeling;
+            _currentReelSpeed = target != null ? reelSpeed : 0f;
+            if (target == null) return;
+            if (!_firstPerson.IsExternalMovementActive)
+                _firstPerson.BeginExternalMovement();
+            _velocity = Vector3.zero;
+            target.state = AnchorState.Reeling;
         }
 
         private void OnPullCanceled(InputAction.CallbackContext context)
         {
             _pullHeld = false;
-            _suspendReelUntilRelease = false;
             if (_reelTarget != null && _reelTarget.state == AnchorState.Reeling)
                 _reelTarget.state = AnchorState.Attached;
             _reelTarget = null;
             _currentReelSpeed = 0f;
+            if (_latchTarget == null && _firstPerson.IsExternalMovementActive)
+                _firstPerson.EndExternalMovement(_velocity);
         }
 
         private bool AnyAttached => _left.Attached || _right.Attached;
@@ -279,11 +271,15 @@ namespace AltitudeZero
                     _character.Move(offset);
                 return;
             }
-            if (_pullHeld && !_suspendReelUntilRelease && _reelTarget != null &&
-                _reelTarget.state == AnchorState.Reeling)
+            if (_reelTarget != null && _reelTarget.state == AnchorState.Reeling)
                 MoveStraightToAnchor(_reelTarget, dt);
             else
-                MoveWithGravity(dt);
+            {
+                ConstrainRope(_left);
+                ConstrainRope(_right);
+                TightenRope(_left);
+                TightenRope(_right);
+            }
         }
 
         private void UpdateMissShot(Anchor anchor)
@@ -323,6 +319,14 @@ namespace AltitudeZero
             }
             _currentReelSpeed = Mathf.MoveTowards(_currentReelSpeed, flightSpeed, acceleration * dt);
             var displacement = toDestination / distance * Mathf.Min(distance, _currentReelSpeed * dt);
+            if (TryFindReelContact(displacement, out var contact))
+            {
+                var safeDistance = Mathf.Max(0f, contact.distance - 0.005f);
+                _character.Move(displacement.normalized * safeDistance);
+                TightenRope(target);
+                LatchTo(target, contact.collider);
+                return;
+            }
             var before = transform.position;
             _reelDirection = displacement.normalized;
             _blockingCollider = null;
@@ -336,11 +340,41 @@ namespace AltitudeZero
             if (other.Attached)
                 other.ropeLength = Mathf.Max(other.ropeLength, Vector3.Distance(RopeStart(other), AnchorPoint(other)) + 0.5f);
             if (_blockingCollider != null ||
-                ((collisionFlags & CollisionFlags.Sides) != 0 &&
+                (collisionFlags != CollisionFlags.None &&
                  Vector3.Dot(actualMove, _reelDirection) < displacement.magnitude * 0.75f))
                 LatchTo(target, _blockingCollider);
             else if ((ReelDestination(target) - transform.position).sqrMagnitude <= 0.12f * 0.12f)
                 LatchTo(target, target.collider);
+        }
+
+        private bool TryFindReelContact(Vector3 displacement, out RaycastHit contact)
+        {
+            contact = default;
+            var distance = displacement.magnitude;
+            if (distance <= 0f) return false;
+            var scale = transform.lossyScale;
+            var radius = _character.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.z));
+            var height = Mathf.Max(radius * 2f, _character.height * Mathf.Abs(scale.y));
+            var center = transform.TransformPoint(_character.center);
+            var halfSegment = height * 0.5f - radius;
+            var top = center + transform.up * halfSegment;
+            var bottom = center - transform.up * halfSegment;
+            var direction = displacement / distance;
+            var nearest = float.PositiveInfinity;
+            var hits = Physics.CapsuleCastAll(top, bottom, radius, direction, distance,
+                ~0, QueryTriggerInteraction.Ignore);
+            foreach (var hit in hits)
+            {
+                var collider = hit.collider;
+                if (collider == null || collider == _left.markerCollider || collider == _right.markerCollider ||
+                    collider.transform.IsChildOf(transform) ||
+                    Physics.GetIgnoreLayerCollision(gameObject.layer, collider.gameObject.layer) ||
+                    Vector3.Dot(direction, hit.normal) >= -0.05f || hit.distance >= nearest)
+                    continue;
+                nearest = hit.distance;
+                contact = hit;
+            }
+            return contact.collider != null;
         }
 
         private void LatchTo(Anchor target, Collider contact)
@@ -352,7 +386,6 @@ namespace AltitudeZero
             _holdLocalPosition = contact != null
                 ? contact.transform.InverseTransformPoint(transform.position) : Vector3.zero;
             _reelTarget = null;
-            _suspendReelUntilRelease = true;
             _velocity = Vector3.zero;
         }
 
@@ -376,25 +409,6 @@ namespace AltitudeZero
             if (!anchor.Attached) return;
             anchor.ropeLength = Mathf.Max(minimumRopeLength,
                 Mathf.Min(anchor.ropeLength, Vector3.Distance(RopeStart(anchor), AnchorPoint(anchor))));
-        }
-
-        private void MoveWithGravity(float dt)
-        {
-            _velocity += Vector3.up * _firstPerson.Gravity * dt;
-            if (_input != null)
-            {
-                var steering = transform.right * _input.move.x + transform.forward * _input.move.y;
-                _velocity += Vector3.ClampMagnitude(steering, 1f) * airSteering * dt;
-            }
-            var before = transform.position;
-            var flags = _character.Move(_velocity * dt);
-            ConstrainRope(_left);
-            ConstrainRope(_right);
-            TightenRope(_left);
-            TightenRope(_right);
-            _velocity = (transform.position - before) / dt;
-            if ((flags & CollisionFlags.Above) != 0 && _velocity.y > 0f) _velocity.y = 0f;
-            if ((flags & CollisionFlags.Below) != 0 && _velocity.y < 0f) _velocity.y = 0f;
         }
 
         private void ConstrainRope(Anchor anchor)
@@ -441,16 +455,21 @@ namespace AltitudeZero
             if (wasReelTarget)
             {
                 _reelTarget = null;
-                _suspendReelUntilRelease = true;
                 _currentReelSpeed = 0f;
             }
             if (wasLatchTarget)
                 ReleaseHold();
-            if (!AnyAttached)
+            if (AnyAttached)
             {
-                _firstPerson.EndExternalMovement(_velocity);
-                _pullHeld = false;
-                _suspendReelUntilRelease = false;
+                if (_pullHeld && (wasReelTarget || wasLatchTarget))
+                    StartReeling(MostRecentAnchor());
+                else if ((wasReelTarget || wasLatchTarget) && _firstPerson.IsExternalMovementActive)
+                    _firstPerson.EndExternalMovement(_velocity);
+            }
+            else
+            {
+                if (_firstPerson.IsExternalMovementActive)
+                    _firstPerson.EndExternalMovement(_velocity);
                 ReleaseHold();
                 _velocity = Vector3.zero;
             }

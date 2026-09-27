@@ -378,16 +378,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae71703256c446f183f7a14bf8819999, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  maxRange: 150
+  maxRange: 800
   anchorLayers:
     serializedVersion: 2
     m_Bits: 4294967295
   flightSpeed: 32
   acceleration: 80
-  airSteering: 12
   reelSpeed: 18
   minimumRopeLength: 1.5
   ropeWidth: 0.065
   ropeColor: {r: 0.08, g: 0.1, b: 0.13, a: 1}
   ropeHighlight: {r: 0.9, g: 0.96, b: 1, a: 1}
-  missShotRange: 35
+  missShotRange: 200

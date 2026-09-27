@@ -59,6 +59,7 @@ namespace StarterAssets
 		private float _rotationVelocity;
 		private float _verticalVelocity;
 		private bool _externalMovementActive;
+		public bool IsExternalMovementActive => _externalMovementActive;
 		private Vector3 _inheritedVelocity;
 		private float _terminalVelocity = 53.0f;
 
