@@ -60,6 +60,14 @@
                     "expectedControlType": "Button",
                     "processors": "",
                     "interactions": ""
+                },
+                {
+                    "name": "FireRaisou",
+                    "type": "Button",
+                    "id": "8459c517-3abf-4c32-a4f2-9be1951d9b30",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": ""
                 }
             ],
             "bindings": [
@@ -291,6 +299,28 @@
                     "processors": "",
                     "groups": "KeyboardMouse",
                     "action": "LeftGrapple",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "66f1a299-b88c-4dc8-b0d6-7b0338e212d8",
+                    "path": "<Keyboard>/f",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "KeyboardMouse",
+                    "action": "FireRaisou",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "3d222519-6b12-43e7-ae8c-82119d150a33",
+                    "path": "<Gamepad>/buttonWest",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "FireRaisou",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
