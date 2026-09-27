@@ -390,5 +390,4 @@ MonoBehaviour:
   ropeWidth: 0.065
   ropeColor: {r: 0.08, g: 0.1, b: 0.13, a: 1}
   ropeHighlight: {r: 0.9, g: 0.96, b: 1, a: 1}
-  maximumSag: 4
   missShotRange: 35
