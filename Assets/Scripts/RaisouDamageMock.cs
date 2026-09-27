@@ -4,20 +4,27 @@ using UnityEngine;
 namespace AltitudeZero
 {
     public enum RaisouTargetKind { RaidBoss, Building, Other }
+    public enum WeaponKind { Raisou, Blade }
 
     public readonly struct RaisouHit
     {
         public readonly Collider Collider;
         public readonly RaisouTargetKind Kind;
+        public readonly WeaponKind Weapon;
         public readonly float Damage;
         public readonly Vector3 Point;
         public readonly Vector3 Normal;
 
         public RaisouHit(Collider collider, RaisouTargetKind kind, float damage,
             Vector3 point, Vector3 normal)
+            : this(collider, kind, damage, point, normal, WeaponKind.Raisou) { }
+
+        public RaisouHit(Collider collider, RaisouTargetKind kind, float damage,
+            Vector3 point, Vector3 normal, WeaponKind weapon)
         {
             Collider = collider;
             Kind = kind;
+            Weapon = weapon;
             Damage = damage;
             Point = point;
             Normal = normal;
@@ -29,15 +36,16 @@ namespace AltitudeZero
     {
         public static event Action<RaisouHit> Hit;
 
-        public static void Apply(Collider collider, float damage, Vector3 point, Vector3 normal)
+        public static void Apply(Collider collider, float damage, Vector3 point, Vector3 normal,
+            WeaponKind weapon = WeaponKind.Raisou)
         {
             var kind = collider.GetComponentInParent<RaidBossLocomotion>() != null
                 ? RaisouTargetKind.RaidBoss
                 : collider.name.StartsWith("bldg_", StringComparison.Ordinal)
                     ? RaisouTargetKind.Building : RaisouTargetKind.Other;
-            var result = new RaisouHit(collider, kind, damage, point, normal);
+            var result = new RaisouHit(collider, kind, damage, point, normal, weapon);
             Hit?.Invoke(result);
-            Debug.Log($"雷槍命中: {kind} / {collider.name} / 仮ダメージ {damage:0.##}", collider);
+            Debug.Log($"{(weapon == WeaponKind.Blade ? "刀" : "雷槍")}命中: {kind} / {collider.name} / 仮ダメージ {damage:0.##}", collider);
         }
     }
 }
