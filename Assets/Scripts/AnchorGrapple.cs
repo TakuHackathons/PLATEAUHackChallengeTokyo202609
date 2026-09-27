@@ -1,4 +1,5 @@
-﻿using StarterAssets;
+﻿using System.Collections.Generic;
+using StarterAssets;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -44,6 +45,7 @@ namespace AltitudeZero
             public LineRenderer core;
             public GameObject marker;
             public Collider markerCollider;
+            public readonly List<Collider> ignoredTargetColliders = new List<Collider>();
             public GameObject gauntlet;
             public Transform muzzle;
             public bool Attached => state != AnchorState.Detached;
@@ -180,6 +182,7 @@ namespace AltitudeZero
             anchor.marker.SetActive(true);
             anchor.markerCollider.enabled = true;
             Physics.IgnoreCollision(_character, anchor.markerCollider, true);
+            IgnoreAnchorTargetCollisions(anchor);
             if (_pullHeld)
                 StartReeling(anchor);
             UpdateVisuals(anchor);
@@ -434,6 +437,30 @@ namespace AltitudeZero
         private Vector3 RopeStart(Anchor anchor) => anchor.muzzle != null
             ? anchor.muzzle.position : _firstPerson.CinemachineCameraTarget.transform.position;
 
+        private static void IgnoreAnchorTargetCollisions(Anchor anchor)
+        {
+            // 刺さった球と対象の接触解決で、動的 Rigidbody を押し出さない。
+            var body = anchor.collider.attachedRigidbody;
+            if (body == null)
+            {
+                IgnoreTargetCollider(anchor, anchor.collider);
+                return;
+            }
+
+            foreach (var target in body.GetComponentsInChildren<Collider>())
+            {
+                if (target.attachedRigidbody == body)
+                    IgnoreTargetCollider(anchor, target);
+            }
+        }
+
+        private static void IgnoreTargetCollider(Anchor anchor, Collider target)
+        {
+            if (target == null || target == anchor.markerCollider) return;
+            Physics.IgnoreCollision(anchor.markerCollider, target, true);
+            anchor.ignoredTargetColliders.Add(target);
+        }
+
         private void Detach(Anchor anchor)
         {
             if (!anchor.Attached)
@@ -445,6 +472,12 @@ namespace AltitudeZero
             }
             var wasReelTarget = _reelTarget == anchor;
             var wasLatchTarget = _latchTarget == anchor;
+            foreach (var target in anchor.ignoredTargetColliders)
+            {
+                if (target != null && anchor.markerCollider != null)
+                    Physics.IgnoreCollision(anchor.markerCollider, target, false);
+            }
+            anchor.ignoredTargetColliders.Clear();
             anchor.collider = null;
             anchor.state = AnchorState.Detached;
             anchor.missTime = -1f;
