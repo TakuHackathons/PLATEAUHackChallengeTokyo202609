@@ -1,4 +1,4 @@
-using StarterAssets;
+﻿using StarterAssets;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -18,7 +18,6 @@ namespace AltitudeZero
         [SerializeField, Min(0f)] private float airSteering = 12f;
         [SerializeField, Min(0.1f)] private float reelSpeed = 18f;
         [SerializeField, Min(0.5f)] private float minimumRopeLength = 1.5f;
-        [SerializeField, Min(0f)] private float launchLift = 11f;
 
         [Header("Visuals")]
         [SerializeField, Min(0.005f)] private float ropeWidth = 0.065f;
@@ -28,33 +27,55 @@ namespace AltitudeZero
         [SerializeField, Min(1f)] private float missShotRange = 35f;
 
         private const int RopeSegments = 20;
+        private const float MissDuration = 0.55f;
+        private sealed class Anchor
+        {
+            public string name;
+            public int side;
+            public Collider collider;
+            public bool attached;
+            public Vector3 localPoint;
+            public Vector3 localNormal;
+            public float ropeLength;
+            public int shotOrder;
+            public float missTime = -1f;
+            public Vector3 missDirection;
+            public LineRenderer rope;
+            public LineRenderer core;
+            public GameObject marker;
+            public GameObject gauntlet;
+            public Transform muzzle;
+            public bool Attached => attached;
+        }
+
+        private readonly Anchor _left = new Anchor { name = "Left", side = -1 };
+        private readonly Anchor _right = new Anchor { name = "Right", side = 1 };
         private CharacterController _character;
         private FirstPersonController _firstPerson;
         private StarterAssetsInputs _input;
         private PlayerInput _playerInput;
         private Camera _camera;
-        private InputAction _grappleAction;
+        private InputAction _leftAction;
+        private InputAction _rightAction;
         private InputAction _pullAction;
-        private LineRenderer _rope;
-        private LineRenderer _ropeCore;
-        private GameObject _marker;
-        private GameObject _gauntlet;
-        private Transform _muzzle;
         private Material _ropeMaterial;
-        private Material _coreMaterial;
-        private Material _markerMaterial;
+        private Material _leftCoreMaterial;
+        private Material _rightCoreMaterial;
+        private Material _leftMarkerMaterial;
+        private Material _rightMarkerMaterial;
         private Material _armorMaterial;
-        private Material _trimMaterial;
-        private Collider _anchorCollider;
-        private Vector3 _localAnchorPoint;
-        private Vector3 _localAnchorNormal;
+        private Material _leftTrimMaterial;
+        private Material _rightTrimMaterial;
         private Vector3 _velocity;
-        private float _ropeLength;
-        private bool _attached;
-        private bool _pulling;
-        private bool _launched;
-        private float _missShotTime = -1f;
-        private Vector3 _missDirection;
+        private float _currentReelSpeed;
+        private bool _pullHeld;
+        private bool _suspendReelUntilRelease;
+        private bool _latched;
+        private int _shotCounter;
+        private Anchor _reelTarget;
+        private Anchor _latchTarget;
+        private Collider _moveTarget;
+        private bool _hitMoveTarget;
         private bool _aimValid;
         private GUIStyle _reticleStyle;
 
@@ -70,92 +91,135 @@ namespace AltitudeZero
 
         private void OnEnable()
         {
-            _grappleAction = _playerInput.actions.FindAction("Player/Grapple", false);
+            _leftAction = _playerInput.actions.FindAction("Player/LeftGrapple", false);
+            _rightAction = _playerInput.actions.FindAction("Player/Grapple", false);
             _pullAction = _playerInput.actions.FindAction("Player/Pull", false);
-            if (_grappleAction == null || _pullAction == null)
+            if (_leftAction == null || _rightAction == null || _pullAction == null)
             {
-                Debug.LogError("PlayerInput needs Player/Grapple and Player/Pull actions.", this);
+                Debug.LogError("PlayerInput needs Player/LeftGrapple, Player/Grapple and Player/Pull actions.", this);
                 enabled = false;
                 return;
             }
-            _grappleAction.performed += OnGrapplePerformed;
+            _leftAction.performed += OnLeftPerformed;
+            _rightAction.performed += OnRightPerformed;
             _pullAction.performed += OnPullPerformed;
             _pullAction.canceled += OnPullCanceled;
-            if (_gauntlet != null) _gauntlet.SetActive(true);
+            if (_left.gauntlet != null) _left.gauntlet.SetActive(true);
+            if (_right.gauntlet != null) _right.gauntlet.SetActive(true);
         }
 
         private void OnDisable()
         {
-            if (_grappleAction != null) _grappleAction.performed -= OnGrapplePerformed;
+            if (_leftAction != null) _leftAction.performed -= OnLeftPerformed;
+            if (_rightAction != null) _rightAction.performed -= OnRightPerformed;
             if (_pullAction != null)
             {
                 _pullAction.performed -= OnPullPerformed;
                 _pullAction.canceled -= OnPullCanceled;
             }
-            Detach();
-            if (_gauntlet != null) _gauntlet.SetActive(false);
+            Detach(_left);
+            Detach(_right);
+            if (_left.gauntlet != null) _left.gauntlet.SetActive(false);
+            if (_right.gauntlet != null) _right.gauntlet.SetActive(false);
         }
 
         private void OnDestroy()
         {
-            if (_rope != null) Destroy(_rope.gameObject);
-            if (_marker != null) Destroy(_marker);
-            if (_gauntlet != null) Destroy(_gauntlet);
+            DestroyAnchorVisuals(_left);
+            DestroyAnchorVisuals(_right);
             if (_ropeMaterial != null) Destroy(_ropeMaterial);
-            if (_coreMaterial != null) Destroy(_coreMaterial);
-            if (_markerMaterial != null) Destroy(_markerMaterial);
+            if (_leftCoreMaterial != null) Destroy(_leftCoreMaterial);
+            if (_rightCoreMaterial != null) Destroy(_rightCoreMaterial);
+            if (_leftMarkerMaterial != null) Destroy(_leftMarkerMaterial);
+            if (_rightMarkerMaterial != null) Destroy(_rightMarkerMaterial);
             if (_armorMaterial != null) Destroy(_armorMaterial);
-            if (_trimMaterial != null) Destroy(_trimMaterial);
+            if (_leftTrimMaterial != null) Destroy(_leftTrimMaterial);
+            if (_rightTrimMaterial != null) Destroy(_rightTrimMaterial);
         }
 
-        private void OnGrapplePerformed(InputAction.CallbackContext context)
+        private static void DestroyAnchorVisuals(Anchor anchor)
         {
-            if (_attached)
+            if (anchor.rope != null) Destroy(anchor.rope.gameObject);
+            if (anchor.marker != null) Destroy(anchor.marker);
+            if (anchor.gauntlet != null) Destroy(anchor.gauntlet);
+        }
+
+        private void OnLeftPerformed(InputAction.CallbackContext context) => FireOrDetach(_left);
+        private void OnRightPerformed(InputAction.CallbackContext context) => FireOrDetach(_right);
+
+        private void FireOrDetach(Anchor anchor)
+        {
+            if (anchor.Attached)
             {
-                Detach();
+                Detach(anchor);
                 return;
             }
-
             if (!TryFindAnchor(out var selected))
             {
                 var camera = GetCamera();
                 if (camera == null) return;
-                _missDirection = camera.transform.forward;
-                _missShotTime = 0f;
-                _rope.enabled = true;
-                _ropeCore.enabled = true;
+                anchor.missDirection = camera.transform.forward;
+                anchor.missTime = 0f;
+                anchor.rope.enabled = true;
+                anchor.core.enabled = true;
                 return;
             }
 
-            _missShotTime = -1f;
-            _anchorCollider = selected.collider;
-            _attached = true;
-            _localAnchorPoint = _anchorCollider.transform.InverseTransformPoint(selected.point);
-            _localAnchorNormal = _anchorCollider.transform.InverseTransformDirection(selected.normal);
-            _ropeLength = Mathf.Max(minimumRopeLength, Vector3.Distance(RopeStart(), selected.point));
-            _velocity = _character.velocity;
-            _pulling = _pullAction.IsPressed();
-            _launched = false;
-            _firstPerson.BeginExternalMovement();
-            _rope.enabled = true;
-            _ropeCore.enabled = true;
-            _marker.SetActive(true);
-            if (_pulling) Launch();
-            UpdateVisuals();
+            var firstAnchor = !AnyAttached;
+            if (firstAnchor)
+            {
+                _velocity = _character.velocity;
+                _firstPerson.BeginExternalMovement();
+            }
+            anchor.collider = selected.collider;
+            anchor.attached = true;
+            anchor.localPoint = selected.collider.transform.InverseTransformPoint(selected.point);
+            anchor.localNormal = selected.collider.transform.InverseTransformDirection(selected.normal);
+            anchor.ropeLength = Mathf.Max(minimumRopeLength, Vector3.Distance(RopeStart(anchor), selected.point));
+            anchor.shotOrder = ++_shotCounter;
+            anchor.missTime = -1f;
+            anchor.rope.enabled = true;
+            anchor.core.enabled = true;
+            anchor.marker.SetActive(true);
+            if (_pullHeld)
+            {
+                _reelTarget = anchor;
+                _suspendReelUntilRelease = false;
+                _latched = false;
+                _latchTarget = null;
+                _currentReelSpeed = reelSpeed;
+            }
+            UpdateVisuals(anchor);
         }
 
         private void OnPullPerformed(InputAction.CallbackContext context)
         {
-            _pulling = true;
-            if (_attached) Launch();
+            _pullHeld = true;
+            _suspendReelUntilRelease = false;
+            _reelTarget = MostRecentAnchor();
+            _currentReelSpeed = reelSpeed;
+            if (_reelTarget != null)
+            {
+                _latched = false;
+                _latchTarget = null;
+            }
         }
-        private void OnPullCanceled(InputAction.CallbackContext context) { _pulling = false; }
 
-        private void Launch()
+        private void OnPullCanceled(InputAction.CallbackContext context)
         {
-            if (_launched) return;
-            _launched = true;
-            _velocity.y = Mathf.Max(_velocity.y, launchLift);
+            _pullHeld = false;
+            _suspendReelUntilRelease = false;
+            _reelTarget = null;
+            _currentReelSpeed = 0f;
+        }
+
+        private bool AnyAttached => _left.Attached || _right.Attached;
+
+        private Anchor MostRecentAnchor()
+        {
+            if (!_left.Attached) return _right.Attached ? _right : null;
+            if (!_right.Attached) return _left;
+            return _left.shotOrder > _right.shotOrder ? _left : _right;
         }
 
         private bool TryFindAnchor(out RaycastHit selected)
@@ -183,194 +247,283 @@ namespace AltitudeZero
 
         private void Update()
         {
-            if (!_attached)
+            UpdateMissShot(_left);
+            UpdateMissShot(_right);
+            ValidateAnchor(_left);
+            ValidateAnchor(_right);
+            if (!AnyAttached) return;
+            var dt = Time.deltaTime;
+            if (dt <= 0f) return;
+            if (_latched)
             {
-                if (_missShotTime >= 0f)
+                _velocity = Vector3.zero;
+                if (_latchTarget != null && _latchTarget.Attached)
                 {
-                    _missShotTime += Time.deltaTime;
-                    if (_missShotTime >= 0.55f)
-                    {
-                        _missShotTime = -1f;
-                        _rope.enabled = false;
-                        _ropeCore.enabled = false;
-                    }
+                    var offset = ReelDestination(_latchTarget) - transform.position;
+                    if (offset.sqrMagnitude > 0.0025f)
+                        _character.Move(offset);
                 }
                 return;
             }
-            if (_anchorCollider == null || !_anchorCollider.enabled || !_anchorCollider.gameObject.activeInHierarchy)
+            if (_pullHeld && !_suspendReelUntilRelease && _reelTarget != null && _reelTarget.Attached)
+                MoveStraightToAnchor(_reelTarget, dt);
+            else
+                MoveWithGravity(dt);
+        }
+
+        private void UpdateMissShot(Anchor anchor)
+        {
+            if (anchor.Attached || anchor.missTime < 0f) return;
+            anchor.missTime += Time.deltaTime;
+            if (anchor.missTime < MissDuration) return;
+            anchor.missTime = -1f;
+            anchor.rope.enabled = false;
+            anchor.core.enabled = false;
+        }
+
+        private void ValidateAnchor(Anchor anchor)
+        {
+            if (anchor.Attached && (anchor.collider == null || !anchor.collider.enabled ||
+                !anchor.collider.gameObject.activeInHierarchy))
+                Detach(anchor);
+        }
+
+        private Vector3 ReelDestination(Anchor anchor)
+        {
+            var normal = AnchorNormal(anchor);
+            var clearance = Mathf.Lerp(_character.radius, _character.height * 0.5f, Mathf.Abs(normal.y))
+                + _character.skinWidth + 0.08f;
+            var center = anchor.collider.transform.TransformPoint(anchor.localPoint) + normal * clearance;
+            return center - transform.TransformVector(_character.center);
+        }
+
+        private void MoveStraightToAnchor(Anchor target, float dt)
+        {
+            var toDestination = ReelDestination(target) - transform.position;
+            var distance = toDestination.magnitude;
+            if (distance <= 0.12f)
             {
-                Detach();
+                LatchTo(target);
                 return;
             }
+            _currentReelSpeed = Mathf.MoveTowards(_currentReelSpeed, flightSpeed, acceleration * dt);
+            var displacement = toDestination / distance * Mathf.Min(distance, _currentReelSpeed * dt);
+            var before = transform.position;
+            _moveTarget = target.collider;
+            _hitMoveTarget = false;
+            _character.Move(displacement);
+            _moveTarget = null;
+            _velocity = (transform.position - before) / dt;
+            target.ropeLength = Mathf.Max(minimumRopeLength, Vector3.Distance(RopeStart(target), AnchorPoint(target)));
+            var other = target == _left ? _right : _left;
+            if (other.Attached)
+                other.ropeLength = Mathf.Max(other.ropeLength, Vector3.Distance(RopeStart(other), AnchorPoint(other)) + 0.5f);
+            if ((ReelDestination(target) - transform.position).sqrMagnitude <= 0.12f * 0.12f ||
+                _hitMoveTarget && (transform.position - before).sqrMagnitude < displacement.sqrMagnitude * 0.5f)
+                LatchTo(target);
+        }
 
-            var dt = Time.deltaTime;
-            if (dt <= 0f) return;
-            var anchor = AnchorPoint();
-            var start = RopeStart();
-            var toward = anchor - start;
-            var distance = toward.magnitude;
-            var direction = distance > 0.001f ? toward / distance : Vector3.zero;
+        private void LatchTo(Anchor target)
+        {
+            _latched = true;
+            _latchTarget = target;
+            _velocity = Vector3.zero;
+        }
 
-            // The cable only pulls when extended. Inside its length it is slack.
+        private void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            if (_moveTarget != null && hit.collider == _moveTarget) _hitMoveTarget = true;
+        }
+
+        private void MoveWithGravity(float dt)
+        {
             _velocity += Vector3.up * _firstPerson.Gravity * dt;
             if (_input != null)
             {
                 var steering = transform.right * _input.move.x + transform.forward * _input.move.y;
                 _velocity += Vector3.ClampMagnitude(steering, 1f) * airSteering * dt;
             }
-            if (_pulling && distance > minimumRopeLength)
-            {
-                _velocity += direction * acceleration * dt;
-                _velocity = Vector3.ClampMagnitude(_velocity, flightSpeed);
-            }
-
             var before = transform.position;
             var flags = _character.Move(_velocity * dt);
+            ConstrainRope(_left);
+            ConstrainRope(_right);
             _velocity = (transform.position - before) / dt;
-
-            // Keep sideways velocity for a swing. An unextended cable never pushes.
-            var fromAnchor = RopeStart() - anchor;
-            var currentDistance = fromAnchor.magnitude;
-            if (_pulling && currentDistance < _ropeLength)
-                _ropeLength = Mathf.Max(minimumRopeLength, currentDistance, _ropeLength - reelSpeed * dt);
-            if (currentDistance > _ropeLength && currentDistance > 0.001f)
-            {
-                var outward = fromAnchor / currentDistance;
-                before = transform.position;
-                _character.Move(-outward * (currentDistance - _ropeLength));
-                _velocity += (transform.position - before) / dt;
-                var outwardSpeed = Vector3.Dot(_velocity, outward);
-                if (outwardSpeed > 0f) _velocity -= outward * outwardSpeed;
-            }
-
             if ((flags & CollisionFlags.Above) != 0 && _velocity.y > 0f) _velocity.y = 0f;
             if ((flags & CollisionFlags.Below) != 0 && _velocity.y < 0f) _velocity.y = 0f;
+        }
+
+        private void ConstrainRope(Anchor anchor)
+        {
+            if (!anchor.Attached) return;
+            var fromAnchor = RopeStart(anchor) - AnchorPoint(anchor);
+            var distance = fromAnchor.magnitude;
+            if (distance <= anchor.ropeLength || distance < 0.001f) return;
+            _character.Move(-fromAnchor / distance * (distance - anchor.ropeLength));
         }
 
         private void LateUpdate()
         {
             _aimValid = TryFindAnchor(out _);
-            if (_attached && _anchorCollider != null) UpdateVisuals();
-            else if (_missShotTime >= 0f) UpdateMissShot();
+            if (_left.Attached) UpdateVisuals(_left);
+            else if (_left.missTime >= 0f) DrawMissShot(_left);
+            if (_right.Attached) UpdateVisuals(_right);
+            else if (_right.missTime >= 0f) DrawMissShot(_right);
         }
 
-        private Vector3 AnchorPoint()
-        {
-            return _anchorCollider.transform.TransformPoint(_localAnchorPoint);
-        }
+        private Vector3 AnchorPoint(Anchor anchor) => anchor.collider.transform.TransformPoint(anchor.localPoint);
+        private Vector3 AnchorNormal(Anchor anchor) => anchor.collider.transform.TransformDirection(anchor.localNormal).normalized;
+        private Vector3 RopeStart(Anchor anchor) => anchor.muzzle != null
+            ? anchor.muzzle.position : _firstPerson.CinemachineCameraTarget.transform.position;
 
-        private Vector3 RopeStart()
+        private void Detach(Anchor anchor)
         {
-            return _muzzle != null ? _muzzle.position : _firstPerson.CinemachineCameraTarget.transform.position;
-        }
-
-        private void Detach()
-        {
-            if (_attached) _firstPerson.EndExternalMovement(_velocity);
-            _attached = false;
-            _anchorCollider = null;
-            _pulling = false;
-            _launched = false;
-            _missShotTime = -1f;
-            if (_rope != null) _rope.enabled = false;
-            if (_ropeCore != null) _ropeCore.enabled = false;
-            if (_marker != null) _marker.SetActive(false);
+            if (!anchor.Attached)
+            {
+                anchor.missTime = -1f;
+                if (anchor.rope != null) anchor.rope.enabled = false;
+                if (anchor.core != null) anchor.core.enabled = false;
+                return;
+            }
+            var wasReelTarget = _reelTarget == anchor;
+            var wasLatchTarget = _latchTarget == anchor;
+            anchor.collider = null;
+            anchor.attached = false;
+            anchor.missTime = -1f;
+            anchor.marker.SetActive(false);
+            anchor.rope.enabled = false;
+            anchor.core.enabled = false;
+            if (wasReelTarget)
+            {
+                _reelTarget = null;
+                _suspendReelUntilRelease = true;
+                _currentReelSpeed = 0f;
+            }
+            if (wasLatchTarget)
+            {
+                _latchTarget = null;
+                _latched = false;
+            }
+            if (!AnyAttached)
+            {
+                _firstPerson.EndExternalMovement(_velocity);
+                _pullHeld = false;
+                _suspendReelUntilRelease = false;
+                _latched = false;
+                _latchTarget = null;
+                _velocity = Vector3.zero;
+            }
         }
 
         private void CreateVisuals()
         {
-            var ropeObject = new GameObject("Anchor Rope");
-            ropeObject.transform.SetParent(transform, false);
-            _rope = ropeObject.AddComponent<LineRenderer>();
-            _rope.useWorldSpace = true;
-            _rope.positionCount = RopeSegments + 1;
-            _rope.widthMultiplier = ropeWidth;
-            _rope.numCapVertices = 4;
-            _rope.startColor = ropeColor;
-            _rope.endColor = ropeColor;
-            _rope.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            var coreObject = new GameObject("Wire Highlight");
-            coreObject.transform.SetParent(ropeObject.transform, false);
-            _ropeCore = coreObject.AddComponent<LineRenderer>();
-            _ropeCore.useWorldSpace = true;
-            _ropeCore.positionCount = RopeSegments + 1;
-            _ropeCore.widthMultiplier = ropeWidth * 0.28f;
-            _ropeCore.numCapVertices = 4;
-            _ropeCore.startColor = ropeHighlight;
-            _ropeCore.endColor = ropeHighlight;
-            _ropeCore.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
             if (shader != null)
             {
                 _ropeMaterial = new Material(shader);
                 SetMaterialColor(_ropeMaterial, ropeColor);
-                _rope.material = _ropeMaterial;
-                _coreMaterial = new Material(shader);
-                SetMaterialColor(_coreMaterial, ropeHighlight);
-                _ropeCore.material = _coreMaterial;
+                _leftCoreMaterial = new Material(shader);
+                SetMaterialColor(_leftCoreMaterial, new Color(0.35f, 0.88f, 1f));
+                _rightCoreMaterial = new Material(shader);
+                SetMaterialColor(_rightCoreMaterial, ropeHighlight);
+                _leftMarkerMaterial = new Material(shader);
+                SetMaterialColor(_leftMarkerMaterial, new Color(0.35f, 0.88f, 1f));
+                _rightMarkerMaterial = new Material(shader);
+                SetMaterialColor(_rightMarkerMaterial, ropeHighlight);
+                _armorMaterial = new Material(shader);
+                SetMaterialColor(_armorMaterial, new Color(0.075f, 0.085f, 0.11f));
+                _leftTrimMaterial = new Material(shader);
+                SetMaterialColor(_leftTrimMaterial, new Color(0.35f, 0.88f, 1f));
+                _rightTrimMaterial = new Material(shader);
+                SetMaterialColor(_rightTrimMaterial, new Color(0.8f, 0.62f, 0.32f));
             }
-            _rope.enabled = false;
-            _ropeCore.enabled = false;
-
-            _marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            _marker.name = "Embedded Anchor";
-            _marker.layer = 2; // Ignore Raycast
-            _marker.transform.localScale = Vector3.one * 0.2f;
-            Destroy(_marker.GetComponent<Collider>());
-            if (shader != null)
-            {
-                _markerMaterial = new Material(shader);
-                SetMaterialColor(_markerMaterial, ropeHighlight);
-                _marker.GetComponent<Renderer>().material = _markerMaterial;
-            }
-            _marker.SetActive(false);
-            CreateGauntlet(shader);
+            CreateAnchorVisuals(_left, shader);
+            CreateAnchorVisuals(_right, shader);
         }
 
-        private void CreateGauntlet(Shader shader)
+        private void CreateAnchorVisuals(Anchor anchor, Shader shader)
+        {
+            var ropeObject = new GameObject(anchor.name + " Anchor Rope");
+            ropeObject.transform.SetParent(transform, false);
+            anchor.rope = ropeObject.AddComponent<LineRenderer>();
+            anchor.rope.useWorldSpace = true;
+            anchor.rope.positionCount = RopeSegments + 1;
+            anchor.rope.widthMultiplier = ropeWidth;
+            anchor.rope.numCapVertices = 4;
+            anchor.rope.startColor = ropeColor;
+            anchor.rope.endColor = ropeColor;
+            anchor.rope.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var coreObject = new GameObject(anchor.name + " Wire Highlight");
+            coreObject.transform.SetParent(ropeObject.transform, false);
+            anchor.core = coreObject.AddComponent<LineRenderer>();
+            anchor.core.useWorldSpace = true;
+            anchor.core.positionCount = RopeSegments + 1;
+            anchor.core.widthMultiplier = ropeWidth * 0.28f;
+            anchor.core.numCapVertices = 4;
+            anchor.core.startColor = anchor.side < 0 ? new Color(0.35f, 0.88f, 1f) : ropeHighlight;
+            anchor.core.endColor = anchor.core.startColor;
+            anchor.core.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            if (shader != null)
+            {
+                anchor.rope.material = _ropeMaterial;
+                anchor.core.material = anchor.side < 0 ? _leftCoreMaterial : _rightCoreMaterial;
+            }
+            anchor.rope.enabled = false;
+            anchor.core.enabled = false;
+
+            anchor.marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            anchor.marker.name = anchor.name + " Embedded Anchor";
+            anchor.marker.layer = 2;
+            anchor.marker.transform.localScale = Vector3.one * 0.2f;
+            var markerCollider = anchor.marker.GetComponent<Collider>();
+            markerCollider.enabled = false;
+            Destroy(markerCollider);
+            if (shader != null)
+                anchor.marker.GetComponent<Renderer>().sharedMaterial = anchor.side < 0
+                    ? _leftMarkerMaterial : _rightMarkerMaterial;
+            anchor.marker.SetActive(false);
+            CreateGauntlet(anchor);
+        }
+
+        private void CreateGauntlet(Anchor anchor)
         {
             var camera = GetCamera();
             if (camera == null) return;
-            _gauntlet = new GameObject("Grapple Gauntlet");
-            _gauntlet.transform.SetParent(camera.transform, false);
-            _gauntlet.layer = 2;
-            if (shader != null)
-            {
-                _armorMaterial = new Material(shader);
-                SetMaterialColor(_armorMaterial, new Color(0.075f, 0.085f, 0.11f));
-                _trimMaterial = new Material(shader);
-                SetMaterialColor(_trimMaterial, new Color(0.8f, 0.62f, 0.32f));
-            }
-
-            CreateGauntletPart("Forearm", PrimitiveType.Cylinder,
-                new Vector3(0.54f, -0.60f, 0.48f), new Vector3(0.23f, 0.30f, 0.23f),
-                Quaternion.Euler(34f, 0f, -38f), _armorMaterial);
-            CreateGauntletPart("Wrist Cuff", PrimitiveType.Cylinder,
-                new Vector3(0.34f, -0.35f, 0.67f), new Vector3(0.28f, 0.055f, 0.28f),
-                Quaternion.Euler(34f, 0f, -38f), _trimMaterial);
-            CreateGauntletPart("Glove", PrimitiveType.Cube,
-                new Vector3(0.30f, -0.24f, 0.71f), new Vector3(0.22f, 0.18f, 0.27f),
-                Quaternion.Euler(12f, -12f, -12f), _armorMaterial);
-            CreateGauntletPart("Launcher", PrimitiveType.Cylinder,
-                new Vector3(0.28f, -0.19f, 0.79f), new Vector3(0.13f, 0.16f, 0.13f),
-                Quaternion.Euler(90f, 0f, 0f), _trimMaterial);
-            _muzzle = new GameObject("Wire Muzzle").transform;
-            _muzzle.SetParent(_gauntlet.transform, false);
-            _muzzle.localPosition = new Vector3(0.28f, -0.19f, 0.92f);
-            _muzzle.gameObject.layer = 2;
+            anchor.gauntlet = new GameObject(anchor.name + " Grapple Gauntlet");
+            anchor.gauntlet.transform.SetParent(camera.transform, false);
+            anchor.gauntlet.layer = 2;
+            var side = anchor.side;
+            var trim = side < 0 ? _leftTrimMaterial : _rightTrimMaterial;
+            CreateGauntletPart(anchor, "Forearm", PrimitiveType.Cylinder,
+                new Vector3(side * 0.54f, -0.60f, 0.48f), new Vector3(0.23f, 0.30f, 0.23f),
+                Quaternion.Euler(34f, 0f, side * -38f), _armorMaterial);
+            CreateGauntletPart(anchor, "Wrist Cuff", PrimitiveType.Cylinder,
+                new Vector3(side * 0.34f, -0.35f, 0.67f), new Vector3(0.28f, 0.055f, 0.28f),
+                Quaternion.Euler(34f, 0f, side * -38f), trim);
+            CreateGauntletPart(anchor, "Glove", PrimitiveType.Cube,
+                new Vector3(side * 0.30f, -0.24f, 0.71f), new Vector3(0.22f, 0.18f, 0.27f),
+                Quaternion.Euler(12f, side * -12f, side * -12f), _armorMaterial);
+            CreateGauntletPart(anchor, "Launcher", PrimitiveType.Cylinder,
+                new Vector3(side * 0.28f, -0.19f, 0.79f), new Vector3(0.13f, 0.16f, 0.13f),
+                Quaternion.Euler(90f, 0f, 0f), trim);
+            anchor.muzzle = new GameObject(anchor.name + " Wire Muzzle").transform;
+            anchor.muzzle.SetParent(anchor.gauntlet.transform, false);
+            anchor.muzzle.localPosition = new Vector3(side * 0.28f, -0.19f, 0.92f);
+            anchor.muzzle.gameObject.layer = 2;
         }
 
-        private void CreateGauntletPart(string partName, PrimitiveType shape,
+        private static void CreateGauntletPart(Anchor anchor, string partName, PrimitiveType shape,
             Vector3 position, Vector3 scale, Quaternion rotation, Material material)
         {
             var part = GameObject.CreatePrimitive(shape);
-            part.name = partName;
-            part.transform.SetParent(_gauntlet.transform, false);
+            part.name = anchor.name + " " + partName;
+            part.transform.SetParent(anchor.gauntlet.transform, false);
             part.transform.localPosition = position;
             part.transform.localRotation = rotation;
             part.transform.localScale = scale;
             part.layer = 2;
-            Destroy(part.GetComponent<Collider>());
+            var partCollider = part.GetComponent<Collider>();
+            partCollider.enabled = false;
+            Destroy(partCollider);
             if (material != null) part.GetComponent<Renderer>().sharedMaterial = material;
             part.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
@@ -381,38 +534,38 @@ namespace AltitudeZero
             if (material.HasProperty("_Color")) material.SetColor("_Color", color);
         }
 
-        private void UpdateVisuals()
+        private void UpdateVisuals(Anchor anchor)
         {
-            var anchor = AnchorPoint();
-            var normal = _anchorCollider.transform.TransformDirection(_localAnchorNormal).normalized;
-            var start = RopeStart();
-            var end = anchor - normal * 0.035f; // The cable ends inside the hit surface.
-            var slack = Mathf.Max(0f, _ropeLength - Vector3.Distance(start, anchor));
+            var point = AnchorPoint(anchor);
+            var normal = AnchorNormal(anchor);
+            var start = RopeStart(anchor);
+            var end = point - normal * 0.035f;
+            var slack = Mathf.Max(0f, anchor.ropeLength - Vector3.Distance(start, point));
             var sag = Mathf.Min(maximumSag, slack * 0.5f);
             for (var i = 0; i <= RopeSegments; i++)
             {
                 var t = i / (float)RopeSegments;
-                SetRopePoint(i, Vector3.Lerp(start, end, t) +
+                SetRopePoint(anchor, i, Vector3.Lerp(start, end, t) +
                     Vector3.down * (4f * t * (1f - t) * sag));
             }
-            _marker.transform.position = anchor - normal * 0.025f;
+            anchor.marker.transform.position = point - normal * 0.025f;
         }
 
-        private void UpdateMissShot()
+        private void DrawMissShot(Anchor anchor)
         {
-            var progress = _missShotTime / 0.55f;
+            var progress = anchor.missTime / MissDuration;
             var length = progress < 0.55f ? progress / 0.55f : (1f - progress) / 0.45f;
-            var start = RopeStart();
-            var end = start + _missDirection * (missShotRange * Mathf.Clamp01(length));
+            var start = RopeStart(anchor);
+            var end = start + anchor.missDirection * (missShotRange * Mathf.Clamp01(length));
             for (var i = 0; i <= RopeSegments; i++)
-                SetRopePoint(i, Vector3.Lerp(start, end, i / (float)RopeSegments));
+                SetRopePoint(anchor, i, Vector3.Lerp(start, end, i / (float)RopeSegments));
         }
 
-        private void SetRopePoint(int index, Vector3 point)
+        private void SetRopePoint(Anchor anchor, int index, Vector3 point)
         {
-            _rope.SetPosition(index, point);
+            anchor.rope.SetPosition(index, point);
             var camera = GetCamera();
-            _ropeCore.SetPosition(index, camera != null
+            anchor.core.SetPosition(index, camera != null
                 ? point + (camera.transform.position - point).normalized * 0.008f
                 : point);
         }
@@ -423,7 +576,7 @@ namespace AltitudeZero
             var cx = Screen.width * 0.5f;
             var cy = Screen.height * 0.5f;
             var previous = GUI.color;
-            GUI.color = _attached || _aimValid
+            GUI.color = AnyAttached || _aimValid
                 ? new Color(1f, 0.82f, 0.43f, 0.95f)
                 : new Color(0.75f, 0.78f, 0.82f, 0.8f);
             DrawReticleLine(cx - 20f, cy - 1f, 11f, 2f);
@@ -432,17 +585,17 @@ namespace AltitudeZero
             DrawReticleLine(cx - 1f, cy + 9f, 2f, 11f);
             DrawReticleLine(cx - 2f, cy - 2f, 4f, 4f);
             if (_reticleStyle == null)
-            {
                 _reticleStyle = new GUIStyle(GUI.skin.label)
                 {
                     alignment = TextAnchor.MiddleCenter,
                     fontSize = 12,
                     fontStyle = FontStyle.Bold
                 };
-            }
             _reticleStyle.normal.textColor = GUI.color;
-            GUI.Label(new Rect(cx - 80f, cy + 22f, 160f, 20f),
-                _attached ? "WIRE LOCKED" : _aimValid ? "ANCHOR READY" : "NO ANCHOR", _reticleStyle);
+            GUI.Label(new Rect(cx - 110f, cy + 22f, 220f, 20f),
+                "L: " + (_left.Attached ? "LOCK" : "OPEN") +
+                "   R: " + (_right.Attached ? "LOCK" : "OPEN") +
+                (_latched ? "   HOLD" : ""), _reticleStyle);
             GUI.color = previous;
         }
 

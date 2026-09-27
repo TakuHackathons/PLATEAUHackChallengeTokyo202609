@@ -1,14 +1,17 @@
-# Anchor grapple
+﻿# Dual anchor grapple
 
-SampleScene uses the FPS `PlayerCapsule` prefab with `AnchorGrapple`.
+SampleScene uses the FPS `PlayerCapsule` prefab with `AnchorGrapple`. Both hands have an independent anchor, cable, wall marker, and missed-shot animation. Aim with the center reticle at a non-trigger Collider within 150 m.
 
-- Aim at a wall or another non-trigger Collider within 150 m. **Right mouse button** (gamepad **right shoulder**) fires an anchor. Press it again to detach.
-- The centered reticle says **ANCHOR READY** when a Collider is under the crosshair. **NO ANCHOR** means the next shot will miss. A missed shot still extends and retracts a short wire.
-- **Hold left mouse button** (gamepad **left shoulder**) while anchored to accelerate toward the anchor. The first pull gives an upward launch. Release to stop pulling; the cable remains attached, and the player can swing.
-- The cable is visible from the camera side to a point slightly inside the hit surface. Its marker is embedded in that surface. When the player is closer to the anchor than the cable length, the cable visibly sags.
-- A simple gauntlet and wire muzzle are visible at the lower right of the first person camera. The cable has a dark outer sheath and a bright inner strand.
-- Detaching during flight transfers the current velocity back to the FPS movement controller. The player continues through the air and falls under gravity. WASD or the left stick can steer while anchored.
+| Action | Mouse | Keyboard | Gamepad |
+| --- | --- | --- | --- |
+| Fire/detach left anchor | Left button | Q | Left shoulder |
+| Fire/detach right anchor | Right button | E | Right shoulder |
+| Reel toward the most recently fired attached anchor | Hold middle button | Hold R | Hold right trigger |
 
-The input actions are in `Assets/Starter Assets/Runtime/InputSystem/StarterAssets.inputactions`. The grapple logic is in `Assets/Scripts/AnchorGrapple.cs`, and the FPS controller contains the release velocity handoff. Change range, pull acceleration, reel speed, steering, cable width, or sag in the `Anchor Grapple` component on the `PlayerCapsule` prefab.
+A missed shot extends and retracts its own cable. The left cable has a cyan core; the right has a pale core. The two launchers are visible on the left and right of the FPS view.
 
-To check in Play mode, aim at a building face, attach, hold Pull, then release Pull and move sideways. Detach while airborne to confirm that horizontal speed continues and gravity brings the player down.
+While reeling, the CharacterController moves straight toward the anchor at up to `flightSpeed`, with gravity and air steering suspended. The target position accounts for the player's capsule size so the player stops against the hit surface. Once reached, the player remains attached to that surface until its anchor is detached, even after releasing the reel button. The hold position follows a moving anchored object. With two anchors, the most recently fired anchor is the reel target; the other rope stays attached and is allowed to slacken while reeling. Releasing the reel control before arrival returns to gravity and tethered movement.
+
+Detaching the reel target during flight cancels reeling immediately. The actual travel velocity is passed to the FPS controller when the last anchor detaches, and gravity resumes. If one anchor remains, gravity resumes under that tether. Press reel again after releasing it to choose the remaining anchor.
+
+The input actions are in `Assets/Starter Assets/Runtime/InputSystem/StarterAssets.inputactions`; the movement and visuals are in `Assets/Scripts/AnchorGrapple.cs`. The FPS controller handles the release velocity and gravity after both cables are detached.

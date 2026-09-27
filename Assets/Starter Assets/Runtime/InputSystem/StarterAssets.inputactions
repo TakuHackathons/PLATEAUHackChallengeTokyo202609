@@ -38,6 +38,14 @@
                     "interactions": ""
                 },
                 {
+                    "name": "LeftGrapple",
+                    "type": "Button",
+                    "id": "dd05fa5c-b1b8-45ee-879f-8b974e6ef1b7",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": ""
+                },
+                {
                     "name": "Grapple",
                     "type": "Button",
                     "id": "e3a6f1e4-c1d5-4ab6-948b-5c601ce63762",
@@ -256,7 +264,7 @@
                 {
                     "name": "",
                     "id": "f5b30afb-165e-4387-872e-b51417190e0d",
-                    "path": "<Mouse>/leftButton",
+                    "path": "<Mouse>/middleButton",
                     "interactions": "",
                     "processors": "",
                     "groups": "KeyboardMouse",
@@ -267,10 +275,65 @@
                 {
                     "name": "",
                     "id": "9859b7ee-93e8-40c3-90ed-793664f12a0a",
+                    "path": "<Gamepad>/rightTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "Pull",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "1ca6f5b9-eaad-4203-a349-c2c096f7077f",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "KeyboardMouse",
+                    "action": "LeftGrapple",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "338b47f7-80b1-468f-9720-3f53b6b980d7",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "KeyboardMouse",
+                    "action": "LeftGrapple",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "e50f392d-225d-43d8-b2a5-40cdb4313042",
                     "path": "<Gamepad>/leftShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
+                    "action": "LeftGrapple",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "1e2f5978-0ed8-4df8-becd-3f492ecbe48b",
+                    "path": "<Keyboard>/e",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "KeyboardMouse",
+                    "action": "Grapple",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "53c58f89-f1fa-435d-8088-8edd1bdd1cbc",
+                    "path": "<Keyboard>/r",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "KeyboardMouse",
                     "action": "Pull",
                     "isComposite": false,
                     "isPartOfComposite": false
