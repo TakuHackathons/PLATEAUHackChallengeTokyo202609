@@ -1,17 +1,19 @@
-﻿# Dual anchor grapple
+# 両手アンカーによるワイヤー移動
 
-SampleScene uses the FPS `PlayerCapsule` prefab with `AnchorGrapple`. Both hands have an independent anchor, cable, wall marker, and missed-shot animation. Aim with the center reticle at a non-trigger Collider within 150 m.
+SampleSceneのFPS用`PlayerCapsule`には`AnchorGrapple`が付いています。左右の手はそれぞれ独立したアンカー、ワイヤー、命中位置のマーカーを持ち、外れたときの射出アニメーションもあります。画面中央の照準を150m以内にあるTrigger以外のColliderへ向けて操作します。
 
-| Action | Mouse | Keyboard | Gamepad |
+| 操作 | マウス | キーボード | ゲームパッド |
 | --- | --- | --- | --- |
-| Fire/detach left anchor | Left button | Q | Left shoulder |
-| Fire/detach right anchor | Right button | E | Right shoulder |
-| Reel toward the most recently fired attached anchor | Hold middle button | Hold R | Hold right trigger |
+| 左アンカーを射出・解除 | 左ボタン | Q | 左肩ボタン |
+| 右アンカーを射出・解除 | 右ボタン | E | 右肩ボタン |
+| 最後に打ち込んだアンカーへ引き寄せる | 中ボタンを押し続ける | Rを押し続ける | 右トリガーを押し続ける |
 
-A missed shot extends and retracts its own cable. The left cable has a cyan core; the right has a pale core. The two launchers are visible on the left and right of the FPS view.
+射出が外れた場合、その手のワイヤーが伸びてから戻ります。左ワイヤーの中心はシアン、右ワイヤーの中心は淡い色です。FPS視点では、左右に射出装置が表示されます。
 
-While reeling, the CharacterController moves straight toward the anchor at up to `flightSpeed`, with gravity and air steering suspended. The target position accounts for the player's capsule size so the player stops against the hit surface. Once reached, the player remains attached to that surface until its anchor is detached, even after releasing the reel button. The hold position follows a moving anchored object. With two anchors, the most recently fired anchor is the reel target; the other rope stays attached and is allowed to slacken while reeling. Releasing the reel control before arrival returns to gravity and tethered movement.
+引き寄せ中は`CharacterController`がアンカーへ直進します。最高速度は`flightSpeed`で指定し、その間は重力と空中での方向操作を停止します。停止位置はプレイヤーのカプセルの大きさを考慮して計算するため、命中した面の手前で止まります。到着後は引き寄せボタンを離しても、そのアンカーを解除するまで面に固定されます。打ち込んだ対象が動けば、固定位置も追従します。
 
-Detaching the reel target during flight cancels reeling immediately. The actual travel velocity is passed to the FPS controller when the last anchor detaches, and gravity resumes. If one anchor remains, gravity resumes under that tether. Press reel again after releasing it to choose the remaining anchor.
+アンカーが2本ある場合、最後に打ち込んだ方が引き寄せ先になります。もう一方のワイヤーも接続を保ち、引き寄せ中はたるむことがあります。到着前に引き寄せボタンを離すと、重力とワイヤーの長さに制限される移動に戻ります。
 
-The input actions are in `Assets/Starter Assets/Runtime/InputSystem/StarterAssets.inputactions`; the movement and visuals are in `Assets/Scripts/AnchorGrapple.cs`. The FPS controller handles the release velocity and gravity after both cables are detached.
+引き寄せ中に対象のアンカーを解除すると、引き寄せはすぐに中断します。最後のアンカーを解除したときは、移動速度をFPSコントローラーへ引き継ぎ、重力を再開します。アンカーが1本残っている場合は、そのワイヤーにつながれた状態で重力が働きます。残ったアンカーへ向かうには、引き寄せボタンをいったん離して再度押してください。
+
+引き寄せの最高速度は、`PlayerCapsule`のInspectorにある**Anchor Grapple > Flight Speed**で調整できます。入力設定は`Assets/Starter Assets/Runtime/InputSystem/StarterAssets.inputactions`、移動と表示の処理は`Assets/Scripts/AnchorGrapple.cs`にあります。両方のアンカーを解除した後の速度と重力は、FPSコントローラーが処理します。

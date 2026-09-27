@@ -1,20 +1,20 @@
-# PLATEAU city BoxCollider tool
+# PLATEAU都市モデル用BoxColliderツール
 
-The SampleScene collision prefab is `Assets/Generated/CityBoxColliders.prefab`. It contains only BoxColliders: **361 for the DEM ground** and **396 for 407 buildings**, for **757 total**. Eleven buildings that do not meet the size checks are left without colliders. The old flat temporary ground collider has been removed.
+SampleSceneの当たり判定には、`Assets/Generated/CityBoxColliders.prefab`を使用しています。内訳はDEM地形に361個、建物407棟のうち396棟に各1個で、**合計757個のBoxCollider**です。大きさの条件を満たさない11棟にはColliderを付けていません。以前の仮の平面Colliderは削除済みです。
 
-## Reuse in the Unity Editor
+## Unity Editorで再利用する方法
 
-Select the root of a PLATEAU city model in the Hierarchy, then use **Tools > Altitude Zero > City Box Colliders**:
+HierarchyでPLATEAU都市モデルのルートを選び、**Tools > Altitude Zero > City Box Colliders**から次のコマンドを実行します。
 
-- **Analyze Selected** reports the planned collider count without editing the scene.
-- **Apply Selected** creates `__GeneratedBoxColliders` under the selected city root. Repeating it replaces the prior generated colliders. In SampleScene, it also removes the supplied baked prefab instance to avoid duplicate colliders. Save the scene afterward.
-- **Clear Selected** removes generated colliders and, in SampleScene, the supplied baked prefab instance.
-- **Apply to SampleScene** finds the city model in the open SampleScene and applies the same process.
+- **Analyze Selected**：シーンを変更せず、生成予定のCollider数をConsoleに表示します。
+- **Apply Selected**：選択した都市モデルの下に`__GeneratedBoxColliders`を作成します。再実行すると前回の生成物を置き換えます。SampleSceneでは、Colliderの重複を防ぐため、配置済みの生成Prefabも削除します。実行後はシーンを保存してください。
+- **Clear Selected**：生成したColliderを削除します。SampleSceneでは配置済みの生成Prefabも削除します。
+- **Apply to SampleScene**：開いているSampleSceneから都市モデルを探し、同じ処理を実行します。
 
-The script is `Assets/Editor/CityBoxColliderTool.cs`. The FBX import must allow mesh reading so the Editor can measure its geometry. The collider fitting happens in the Editor; it does not add MeshColliders at runtime.
+スクリプトは`Assets/Editor/CityBoxColliderTool.cs`です。EditorでMeshの形状を計測するため、FBXのインポート設定ではMeshの読み取りを有効にしてください。Colliderの生成はEditor上で行い、実行時にMeshColliderは追加しません。
 
-The tool samples triangles in `dem_*` meshes to estimate terrain height. It covers the DEM with 40 m square boxes and subdivides tiles where sampled heights differ by more than 2 m, down to approximately 10 m. Each box rises to the median sampled height. This gives a coarse, stepped ground surface; check steep slopes, tile edges, and the FPS spawn position in Play mode.
+地面は`dem_*`の三角形から高さを計測します。基本は40m四方のBoxColliderで覆い、計測した高低差が2mを超える場所だけ約10mまで分割します。各BoxColliderの上面には、計測点の高さの中央値を使います。地形は段状に近似されるため、急斜面、タイルの境界、FPSの開始位置はPlayモードで確認してください。
 
-The FPS spawn in SampleScene is set near the generated ground at `(0, 38.5, 110)`; the ground collider there reaches approximately `y = 37.48`.
+SampleSceneのFPS開始位置は`(0, 38.5, 110)`です。この位置の地面Collider上面は、およそ`y = 37.48`です。
 
-For each `bldg_*` group, the tool measures the bounds of all its mesh vertices and creates **one solid BoxCollider** with 0.5 m total horizontal padding. It skips groups with unreadable meshes, very small dimensions, or a width/depth over 80 m instead of making an unreliable box. This intentionally fills courtyards and overhangs within a building's bounds. Inspect entrances or narrow passages that need bespoke collision.
+建物は`bldg_*`ごとに全Meshの頂点から範囲を計測し、**建物1棟につき1個のBoxCollider**を作ります。水平方向には合計0.5mの余裕を持たせます。Meshを読み取れない建物、極端に小さい建物、幅または奥行きが80mを超える建物は、信頼できる箱を作れないため処理を飛ばします。建物内部の中庭や張り出しの下も箱で埋まるので、入口や狭い通路が必要な場所は個別に確認してください。

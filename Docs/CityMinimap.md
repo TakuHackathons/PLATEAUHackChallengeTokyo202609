@@ -1,7 +1,7 @@
-# City map in SampleScene
+# SampleSceneの都市マップ
 
-`City Map Canvas` is a saved uGUI Canvas in SampleScene. Its `map` RawImage uses `Assets/Generated/CityMapPreview.png`, so the map is visible in the Scene and Game views before entering Play mode. The preview was rasterized from the current `CityBoxColliders` prefab around the player start position. Red is a blocked collider footprint; dark blue is open ground. The cyan triangle is the player, and the pink dot is the VRM raid boss.
+SampleSceneには、uGUIの`City Map Canvas`を保存してあります。その中の`map` RawImageは`Assets/Generated/CityMapPreview.png`を使うため、Playモードに入る前からSceneビューとGameビューにマップが表示されます。プレビュー画像は、現在の`CityBoxColliders` Prefabをプレイヤーの開始位置付近から画像化したものです。赤はColliderで通れない範囲、濃い青は開けた地面、シアンの三角形はプレイヤー、ピンクの点はVRMのレイドボスを表します。
 
-During Play, `CityMinimap` on the Canvas replaces the preview with a texture rebuilt from enabled, non-trigger colliders at street height. It follows the player and updates the boss marker. Press **M** or click **SWITCH** to toggle between 120 m local and 400 m wide views. The PlayerCapsule no longer carries the old minimap script. The map creates no camera and leaves the FPS Main Camera output untouched.
+Playモード中は、Canvasに付いた`CityMinimap`がプレビュー画像を差し替え、道路の高さにある有効なTrigger以外のColliderからマップを作り直します。マップはプレイヤーを追い、ボスの位置も更新します。**Mキー**または**SWITCH**ボタンで、周囲120mの表示と広域400mの表示を切り替えられます。`PlayerCapsule`に以前付いていたミニマップ用スクリプトは削除済みです。このマップはカメラを追加せず、FPSのMain Cameraの出力にも影響しません。
 
-For another city, place this Canvas in that scene and assign its `player` and `raidBoss` references. The Play-mode map automatically reads that scene's colliders. The saved preview PNG represents SampleScene only; regenerate it from the new scene's colliders if an accurate pre-Play preview is needed. Collider footprints show horizontal blockage at one street height, not vertical routes or entrances.
+別の都市で使う場合は、そのシーンにCanvasを配置し、`player`と`raidBoss`の参照を設定してください。Playモード中のマップは、そのシーンのColliderを自動で読み取ります。保存済みのプレビューPNGはSampleScene専用です。別のシーンでもPlay前の表示を正確にしたい場合は、そのシーンのColliderからプレビューを再生成してください。マップが示すのは道路の高さにおける水平方向の障害物で、立体的な経路や入口までは表現しません。
